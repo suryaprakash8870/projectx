@@ -17,7 +17,8 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173').split(',').map(s => s.trim());
+app.use(cors({ origin: (origin, cb) => { if (!origin || allowedOrigins.some(o => origin.startsWith(o))) cb(null, true); else cb(new Error('Not allowed by CORS')); }, credentials: true }));
 app.use(express.json());
 app.use(antiFraud);
 

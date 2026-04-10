@@ -10,7 +10,7 @@ import { logout, updateTokens } from './authSlice';
 
 // ── Base query with JWT ──────────────────────────────────────────────────────
 const rawBaseQuery = fetchBaseQuery({
-  baseUrl: '/api',
+  baseUrl: `${import.meta.env.VITE_API_URL || ''}/api`,
   prepareHeaders: (headers, { getState }) => {
     const token = (getState() as RootState).auth.accessToken;
     if (token) headers.set('Authorization', `Bearer ${token}`);
