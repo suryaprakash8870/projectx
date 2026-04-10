@@ -1,0 +1,179 @@
+
+════════════════════════════════════════════════════════════
+  PLAN-I FULL FLOW END-TO-END TEST
+════════════════════════════════════════════════════════════
+
+── Seeding: 512 company users ──
+  Seeded: 512 company users, 1 admin, 1 category, 1 product
+  ✅ Seed complete. Last company user: IND000512
+
+── Phase 1: Register User A ──
+  ✅ User A member ID = IND000513
+  ✅ User A status = PENDING
+  ✅ User A cyclePosition = 2 (real users start at 2)
+  ✅ User A placed under IND000512
+  ✅ User A position = LEFT
+
+── Phase 2: User A joining → Cycle 1 payout ──
+  ✅ Joining request created: ac599f85...
+  ✅ Referrer (company) cyclePosition = 1
+
+  Cycle 1 payout breakdown (uses JOINER's path → L1, L2, L3):
+    L1: ₹250 → IND000512 (COMPANY)
+    L2: ₹250 → IND000511 (COMPANY)
+    L3: ₹250 → IND000510 (COMPANY)
+  ✅ Cycle 1 produces 3 payouts
+  ✅ All payouts tagged cycle_slot=1
+  ✅ Cycle 1 has NO self-payout (correct)
+  ✅ User A coupon = ₹1000
+  ✅ User A income = ₹0 (no self-payout in cycle 1)
+  ✅ User A status = ACTIVE
+  Company referrer cyclePosition after: 2
+
+── Phase 3: Users B-E under User A (cycle rotation 2→3→4→5→2) ──
+
+  ─── User B (referral #1 for User A) ───
+    User A cycle before: 2, expected slot: 2
+  ✅ User A cycle position = 2 (expected 2)
+    Cycle 2 payout (uses REFERRER's path):
+      SELF: ₹250 → IND000513 (REAL)
+      L4: ₹250 → IND000509 (COMPANY)
+      L5: ₹250 → IND000508 (COMPANY)
+  ✅ 3 payout records created
+  ✅ Cycle slot = 2
+  ✅ SELF payout exists
+  ✅ SELF payout goes to User A (IND000513)
+  ✅ User A cycle after = 3 (expected 3)
+  ✅ User B coupon = ₹1000
+
+  ─── User C (referral #2 for User A) ───
+    User A cycle before: 3, expected slot: 3
+  ✅ User A cycle position = 3 (expected 3)
+    Cycle 3 payout (uses REFERRER's path):
+      SELF: ₹250 → IND000513 (REAL)
+      L6: ₹250 → IND000507 (COMPANY)
+      L7: ₹250 → IND000506 (COMPANY)
+  ✅ 3 payout records created
+  ✅ Cycle slot = 3
+  ✅ SELF payout exists
+  ✅ SELF payout goes to User A (IND000513)
+  ✅ User A cycle after = 4 (expected 4)
+  ✅ User C coupon = ₹1000
+
+  ─── User D (referral #3 for User A) ───
+    User A cycle before: 4, expected slot: 4
+  ✅ User A cycle position = 4 (expected 4)
+    Cycle 4 payout (uses REFERRER's path):
+      SELF: ₹250 → IND000513 (REAL)
+      L8: ₹250 → IND000505 (COMPANY)
+      L9: ₹250 → IND000504 (COMPANY)
+  ✅ 3 payout records created
+  ✅ Cycle slot = 4
+  ✅ SELF payout exists
+  ✅ SELF payout goes to User A (IND000513)
+  ✅ User A cycle after = 5 (expected 5)
+  ✅ User D coupon = ₹1000
+
+  ─── User E (referral #4 for User A) ───
+    User A cycle before: 5, expected slot: 5
+  ✅ User A cycle position = 5 (expected 5)
+    Cycle 5 payout (uses REFERRER's path):
+      SELF: ₹250 → IND000513 (REAL)
+      L1: ₹250 → IND000512 (COMPANY)
+      L2: ₹250 → IND000511 (COMPANY)
+  ✅ 3 payout records created
+  ✅ Cycle slot = 5
+  ✅ SELF payout exists
+  ✅ SELF payout goes to User A (IND000513)
+  ✅ User A cycle after = 2 (expected 2)
+  ✅ User E coupon = ₹1000
+
+── Phase 4: Wallet Totals ──
+  ✅ User A income = ₹1000 (expected 1000 = 4×₹250)
+  ✅ User A coupon = ₹1000 (expected 1000)
+
+── Phase 5: User F under User B (2nd generation) ──
+  ✅ User B cycle = 2 (first referral → uses cycle 2)
+  Cycle 2 payout for User F (referrer=User B):
+    SELF: ₹250 → IND000514 (REAL)
+    L4: ₹250 → IND000510 (COMPANY)
+    L5: ₹250 → IND000509 (COMPANY)
+  ✅ SELF goes to User B (IND000514)
+  ✅ User B cycle advanced to 3
+
+── Phase 6: Shop & Order Flow ──
+  ✅ Product found: Smart Watch — ₹2000
+  ✅ User A coupon after order = ₹0 (1000 - 1000 used)
+  ✅ User A purchase wallet = ₹50 (2.5% of ₹2000)
+  ✅ Order status = PLACED
+  ✅ Order cashback = ₹50
+
+── Phase 7: Vendor Registration ──
+  ✅ Vendor created: User A Electronics
+  ✅ Vendor not yet approved (pending admin)
+  ✅ Platform fee = 10%
+  ✅ Duplicate vendor rejected (UNIQUE constraint on category+pin)
+
+── Phase 8: Edge Cases ──
+  ✅ Idempotency check works: ALREADY_PROCESSED
+  ✅ getNextCyclePosition(0) = 2 (corrupted → safe default)
+  ✅ getNextCyclePosition(1) = 2 (corrupted → safe default)
+  ✅ getNextCyclePosition(2) = 3
+  ✅ getNextCyclePosition(3) = 4
+  ✅ getNextCyclePosition(4) = 5
+  ✅ getNextCyclePosition(5) = 2 (wraps)
+  ✅ getNextCyclePosition(6) = 2 (out of range → safe default)
+  ✅ getNextCyclePosition(-1) = 2 (negative → safe default)
+
+  Testing BFS spillover placement...
+  ✅ User G placed via BFS under IND000514 (not directly under User A)
+    User G placed at level 515, parent=IND000514, pos=RIGHT
+
+── Phase 9: Network Tree Integrity ──
+  ✅ IND000513 path ends with own ID
+  ✅ IND000514 path ends with own ID
+  ✅ IND000515 path ends with own ID
+  ✅ IND000516 path ends with own ID
+  ✅ IND000517 path ends with own ID
+  ✅ IND000518 path ends with own ID
+  ✅ Binary tree: no node has > 2 children (0 violations)
+
+── Phase 10: Full Payout Audit ──
+  Total joinings approved: 6
+  Total payout records: 18
+  Total ₹ distributed: ₹4500
+  ✅ Each joining creates exactly 3 payouts (18 = 6×3)
+  ✅ ₹4500 = 6×3×₹250
+
+  Earnings by recipient:
+    IND000513 (REAL): ₹1000
+    IND000512 (COMPANY): ₹500
+    IND000511 (COMPANY): ₹500
+    IND000510 (COMPANY): ₹500
+    IND000509 (COMPANY): ₹500
+    IND000508 (COMPANY): ₹250
+    IND000507 (COMPANY): ₹250
+    IND000506 (COMPANY): ₹250
+    IND000505 (COMPANY): ₹250
+    IND000504 (COMPANY): ₹250
+    IND000514 (REAL): ₹250
+  ✅ GST total = ₹1080 (expected 6×₹180)
+
+  Wallet balance check:
+  ✅ User A (IND000513): income=₹1000, txn_sum=₹1000
+  ✅ User B (IND000514): income=₹250, txn_sum=₹250
+  ✅ User C (IND000515): income=₹0, txn_sum=₹0
+  ✅ User D (IND000516): income=₹0, txn_sum=₹0
+  ✅ User E (IND000517): income=₹0, txn_sum=₹0
+
+── Phase 11: Verify cycle wrap happened correctly ──
+  ✅ User A cycle after 4 referrals = 2 (wrapped 5→2)
+  ✅ User A at cycle 2 before User H approval
+  ✅ User A cycle after User H = 3 (2→3, second rotation)
+  ✅ User H SELF payout goes to User A (cycle 2 again)
+  ✅ User A total income = ₹1250 (5 SELF payouts × ₹250)
+
+════════════════════════════════════════════════════════════
+  ALL 86 TESTS PASSED ✅
+════════════════════════════════════════════════════════════
+

@@ -1,0 +1,229 @@
+// server/src/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+model User {
+  id               String     @id @default(uuid())
+  memberId         String     @unique
+  sequenceNumber   Int        @unique
+  name             String
+  mobile           String?    @unique
+  email            String?    @unique
+  passwordHash     String?
+  referrerId       String?
+  level            Int        @default(1)
+  cyclePosition    Int        @default(1)             // 1–9 referral pointer (Self + L(n) + L(n%9+1))
+  role             String     @default("MEMBER")      // MEMBER | ADMIN
+  placementLeg     String?                            // LEFT or RIGHT preference
+  status           String     @default("ACTIVE")      // PENDING | ACTIVE | SUSPENDED
+  createdAt        DateTime   @default(now())
+
+  referrer         User?            @relation("Referrals", fields: [referrerId], references: [id])
+  referrals        User[]           @relation("Referrals")
+  wallet           Wallet?
+  orders           Order[]
+  payoutsReceived  PayoutRecord[]   @relation("Recipient")
+  joiningRequests  JoiningRequest[]
+  networkNode      NetworkNode?
+  vendorProfile    Vendor?
+}
+
+// ─── Member ID Sequence ───────────────────────────────────────────────────────
+
+model MemberSequence {
+  id             Int @id @default(1)
+  lastSequence   Int @default(512)   // starts at 512 (company users pre-filled)
+}
+
+// ─── Joining Requests ─────────────────────────────────────────────────────────
+
+model JoiningRequest {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  amount      Int      @default(1000)
+  status      String   @default("PENDING")   // PENDING | APPROVED | REJECTED
+  note        String?
+  approvedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+// ─── Network Nodes ────────────────────────────────────────────────────────────
+
+model NetworkNode {
+  userId     String  @id
+  parentId   String?
+  position   String?   // "LEFT" or "RIGHT" — binary tree UI only
+  level      Int     @default(1)
+  path       String    // dot-separated UUIDs for ancestor lookup
+
+  user       User    @relation(fields: [userId], references: [id])
+
+  @@index([path])       // speeds up startsWith queries for downline lookups
+  @@index([parentId])   // speeds up BFS child lookups during placement
+}
+
+// ─── Wallets (4 types) ───────────────────────────────────────────────────────
+
+model Wallet {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  couponBalance    Int      @default(0)    // ₹1000 on join, 50% usage cap per purchase
+  purchaseBalance  Int      @default(0)    // 2.5% cashback from purchases
+  incomeBalance    Int      @default(0)    // Withdrawable earnings from referrals
+  gstBalance       Int      @default(0)    // GST tracking only (not spendable)
+  updatedAt        DateTime @updatedAt
+
+  user             User     @relation(fields: [userId], references: [id])
+  transactions     WalletTransaction[]
+}
+
+model WalletTransaction {
+  id          String   @id @default(uuid())
+  walletId    String
+  type        String     // CREDIT | DEBIT
+  field       String     // COUPON | PURCHASE | INCOME | GST
+  amount      Int
+  note        String?
+  sourceRef   String?
+  createdAt   DateTime @default(now())
+
+  wallet      Wallet   @relation(fields: [walletId], references: [id])
+}
+
+// ─── Payout Records ───────────────────────────────────────────────────────────
+
+model PayoutRecord {
+  id              String   @id @default(uuid())
+  requestId       String
+  joinerId        String
+  recipientId     String
+  levelDiff       Int        // 1-9 upline level offset
+  cycleSlot       Int        // which cycle slot (1-5) triggered this
+  amount          Int      @default(250)
+  createdAt       DateTime @default(now())
+
+  recipient       User     @relation("Recipient", fields: [recipientId], references: [id])
+}
+
+// ─── GST Ledger ───────────────────────────────────────────────────────────────
+
+model GstRecord {
+  id        String   @id @default(uuid())
+  requestId String   @unique
+  amount    Int      @default(180)
+  createdAt DateTime @default(now())
+}
+
+// ─── Categories ──────────────────────────────────────────────────────────────
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  products    Product[]
+  vendors     Vendor[]
+}
+
+// ─── Vendors (one per category per PIN) ──────────────────────────────────────
+
+model Vendor {
+  id           String   @id @default(uuid())
+  userId       String   @unique            // linked to a user account
+  businessName String
+  categoryId   String
+  pinCode      String                      // one vendor per category per PIN
+  platformFee  Int      @default(10)       // 10% platform fee
+  isApproved   Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id])
+  category     Category @relation(fields: [categoryId], references: [id])
+
+  @@unique([categoryId, pinCode])          // enforce one vendor per category per PIN
+}
+
+// ─── Products & Orders ────────────────────────────────────────────────────────
+
+model Product {
+  id             String   @id @default(uuid())
+  name           String
+  description    String?
+  price          Int
+  categoryId     String?
+  couponSplitPct Int      @default(50)     // max 50% can be paid via coupon
+  imageUrl       String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  category       Category? @relation(fields: [categoryId], references: [id])
+  orders         Order[]
+}
+
+model Order {
+  id          String   @id @default(uuid())
+  userId      String
+  productId   String
+  quantity    Int      @default(1)
+  totalAmount Int
+  cashPaid    Int
+  couponUsed  Int
+  cashback    Int      @default(0)         // 2.5% cashback credited to purchase wallet
+  status      String   @default("PLACED")  // PLACED | PROCESSING | SHIPPED | DELIVERED | CANCELLED
+  placedAt    DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
+}
+
+// ─── Revenue Split Records ───────────────────────────────────────────────────
+
+model RevenueSplit {
+  id            String   @id @default(uuid())
+  orderId       String
+  totalAmount   Int
+  gstAmount     Int        // 18% of platform fee
+  companyAmount Int        // 30% of platform fee
+  userAmount    Int        // remaining to users
+  platformFee   Int        // 10% of order total
+  createdAt     DateTime @default(now())
+}
+
+// ─── OTP Tracking ─────────────────────────────────────────────────────────────
+
+model OtpRecord {
+  id        String   @id @default(uuid())
+  mobile    String?
+  email     String?
+  code      String
+  purpose   String     // "VERIFY_ACCOUNT" or "RESET_PASSWORD"
+  expiresAt DateTime
+  isUsed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// ─── Rate Limiting ────────────────────────────────────────────────────────────
+
+model RateLimitEntry {
+  id        String   @id @default(uuid())
+  key       String                         // IP or userId
+  action    String                         // e.g. "LOGIN", "REGISTER", "OTP_REQUEST"
+  count     Int      @default(1)
+  windowStart DateTime @default(now())
+
+  @@unique([key, action])
+}
