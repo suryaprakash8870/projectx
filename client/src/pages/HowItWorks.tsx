@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   TagIcon, ShoppingBagIcon, BanknotesIcon, ReceiptIcon,
-  GiftIcon, LightbulbIcon,
+  GiftIcon,
 } from '../components/Icons';
 
 // ── FAQ accordion item ─────────────────────────────────────────────────────────

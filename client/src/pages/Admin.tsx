@@ -24,7 +24,7 @@ import {
   ChartBarIcon, DocumentIcon, UsersIcon, BanknotesIcon,
   ReceiptIcon, StorefrontIcon, RefreshIcon, TrendingUpIcon, UserIcon,
   ClockIcon, CheckCircleIcon, XCircleIcon, BriefcaseIcon, BoltIcon,
-  ClipboardIcon, ChevronLeftIcon, ChevronRightIcon, ArrowDownIcon,
+  ClipboardIcon, ArrowDownIcon,
 } from '../components/Icons';
 
 // ── Table pagination ─────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ const TABS: { id: AdminTab; label: string; icon: JSX.Element }[] = [
 // ── KPI Card ─────────────────────────────────────────────────────────────────
 function KPICard({ label, value, sub, icon, fullBg, fullBgText }: {
   label: string; value: any; sub?: string; icon: JSX.Element;
-  fullBg?: string; fullBgText?: boolean;
+  fullBg?: string; fullBgText?: boolean; color?: string;
 }) {
   return (
     <div
@@ -551,7 +551,7 @@ function MembersTab() {
 
 // ── Payout Log Tab ────────────────────────────────────────────────────────────
 function PayoutLogTab() {
-  const [typeFilter, setTypeFilter] = useState<string>('');
+  const [typeFilter] = useState<string>('');
   const [cycleFilter, setCycleFilter] = useState<string | undefined>(undefined);
   const [page, setPage] = useState(1);
   const { data, isLoading } = useGetPayoutLogQuery({ type: typeFilter || undefined, cycle: cycleFilter, page });
@@ -877,7 +877,7 @@ function VendorsTab() {
       </div>
 
       {data && data.totalPages > 1 && (
-        <TablePagination page={page} totalPages={data.totalPages} onPageChange={setPage} total={data.total} />
+        <TablePagination page={page} totalPages={data.totalPages} onPageChange={setPage} total={(data as any).total} />
       )}
     </div>
   );

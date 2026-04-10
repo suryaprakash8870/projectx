@@ -130,19 +130,6 @@ export default function Reports() {
     return { month: `${mon} '${yr}`, amount: total };
   });
 
-  // Monthly spending (DEBIT)
-  const monthlySpend = monthLabels.map(label => {
-    const total = transactions
-      .filter(t => t.type === 'DEBIT')
-      .filter(t => {
-        const d = new Date(t.createdAt);
-        return d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }) === label;
-      })
-      .reduce((s, t) => s + t.amount, 0);
-    const [mon, yr] = label.split(' ');
-    return { month: `${mon} '${yr}`, amount: total };
-  });
-
   // Wallet balance breakdown for pie
   const walletPie = wallet ? [
     { name: 'Coupon',   value: wallet.couponBalance,   fill: '#f59e0b' },

@@ -51,8 +51,6 @@ export default function Profile() {
     }
   }
 
-  const referralLink = `${window.location.origin}/?ref=${memberId}`;
-
   return (
     <div className="space-y-6 max-w-lg mx-auto animate-fade-in">
       <div>
