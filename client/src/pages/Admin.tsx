@@ -19,12 +19,17 @@ import {
   useSuspendVendorMutation,
   useGetCycleReportQuery,
   useGetRevenueSplitsQuery,
+  useGetProductsQuery,
+  useGetCategoriesQuery,
+  useCreateProductMutation,
+  useUpdateProductMutation,
+  useDeleteProductMutation,
 } from '../store/apiSlice';
 import {
   ChartBarIcon, DocumentIcon, UsersIcon, BanknotesIcon,
   ReceiptIcon, StorefrontIcon, RefreshIcon, TrendingUpIcon, UserIcon,
   ClockIcon, CheckCircleIcon, XCircleIcon, BriefcaseIcon, BoltIcon,
-  ClipboardIcon, ArrowDownIcon,
+  ClipboardIcon, ArrowDownIcon, ShoppingBagIcon,
 } from '../components/Icons';
 
 // ── Table pagination ─────────────────────────────────────────────────────────
@@ -69,18 +74,18 @@ function TablePagination({ page, totalPages, onPageChange, total, limit = 10 }: 
 }
 
 // ── Tab type ─────────────────────────────────────────────────────────────────
-type AdminTab = 'overview' | 'requests' | 'members' | 'payoutlog' | 'revenue' | 'gst' | 'vendors' | 'cyclereport' | 'revenuesplits';
+type AdminTab = 'overview' | 'requests' | 'members' | 'payoutlog' | 'revenue' | 'gst' | 'vendors' | 'products' | 'revenuesplits';
 
 const TABS: { id: AdminTab; label: string; icon: JSX.Element }[] = [
-  { id: 'overview',       label: 'Overview',           icon: <ChartBarIcon size={16} /> },
-  { id: 'requests',       label: 'Join Requests',      icon: <DocumentIcon size={16} /> },
-  { id: 'members',        label: 'Members',            icon: <UsersIcon size={16} /> },
-  { id: 'payoutlog',      label: 'Payout Log',         icon: <BanknotesIcon size={16} /> },
-  { id: 'revenue',        label: 'Root Revenue',       icon: <BriefcaseIcon size={16} /> },
-  { id: 'gst',            label: 'GST Report',         icon: <ReceiptIcon size={16} /> },
-  { id: 'vendors',        label: 'Vendors',            icon: <StorefrontIcon size={16} /> },
-  { id: 'cyclereport',    label: 'Cycle Report',       icon: <RefreshIcon size={16} /> },
-  { id: 'revenuesplits',  label: 'Revenue Splits',     icon: <TrendingUpIcon size={16} /> },
+  { id: 'overview',      label: 'Overview',        icon: <ChartBarIcon size={16} /> },
+  { id: 'requests',      label: 'Join Requests',   icon: <DocumentIcon size={16} /> },
+  { id: 'members',       label: 'Members',         icon: <UsersIcon size={16} /> },
+  { id: 'payoutlog',     label: 'Payout Log',      icon: <BanknotesIcon size={16} /> },
+  { id: 'revenue',       label: 'Root Revenue',    icon: <BriefcaseIcon size={16} /> },
+  { id: 'gst',           label: 'GST Report',      icon: <ReceiptIcon size={16} /> },
+  { id: 'vendors',       label: 'Vendors',         icon: <StorefrontIcon size={16} /> },
+  { id: 'products',      label: 'Products',        icon: <ShoppingBagIcon size={16} /> },
+  { id: 'revenuesplits', label: 'Revenue Splits',  icon: <TrendingUpIcon size={16} /> },
 ];
 
 // ── KPI Card ─────────────────────────────────────────────────────────────────
@@ -945,6 +950,180 @@ function CycleReportTab() {
   );
 }
 
+// ── Products Tab ─────────────────────────────────────────────────────────────
+function ProductsTab() {
+  const { data: products = [], isLoading, refetch } = useGetProductsQuery();
+  const { data: categories = [] } = useGetCategoriesQuery();
+  const [createProduct, { isLoading: creating }] = useCreateProductMutation();
+  const [updateProduct, { isLoading: updating }] = useUpdateProductMutation();
+  const [deleteProduct, { isLoading: deleting }] = useDeleteProductMutation();
+
+  const emptyForm = { name: '', description: '', price: '', categoryId: '', couponSplitPct: '50', imageUrl: '', isActive: true };
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm);
+
+  function openAdd() { setForm(emptyForm); setEditingId(null); setShowForm(true); }
+  function openEdit(p: any) {
+    setForm({ name: p.name, description: p.description || '', price: String(p.price), categoryId: p.categoryId || '', couponSplitPct: String(p.couponSplitPct), imageUrl: p.imageUrl || '', isActive: p.isActive });
+    setEditingId(p.id);
+    setShowForm(true);
+  }
+  function closeForm() { setShowForm(false); setEditingId(null); setForm(emptyForm); }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const payload = { name: form.name, description: form.description || undefined, price: parseInt(form.price), categoryId: form.categoryId || undefined, couponSplitPct: parseInt(form.couponSplitPct), imageUrl: form.imageUrl || undefined, isActive: form.isActive };
+    try {
+      if (editingId) {
+        await updateProduct({ id: editingId, ...payload }).unwrap();
+        toast.success('Product updated');
+      } else {
+        await createProduct(payload).unwrap();
+        toast.success('Product created');
+      }
+      closeForm();
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.data?.message || 'Failed');
+    }
+  }
+
+  async function handleDelete(id: string, name: string) {
+    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    try {
+      await deleteProduct(id).unwrap();
+      toast.success('Product deleted');
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.data?.message || 'Delete failed');
+    }
+  }
+
+  async function handleToggleActive(p: any) {
+    try {
+      await updateProduct({ id: p.id, isActive: !p.isActive }).unwrap();
+      toast.success(p.isActive ? 'Product hidden from shop' : 'Product visible in shop');
+      refetch();
+    } catch { toast.error('Failed to update'); }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="font-bold t-text" style={{ fontSize: '1rem' }}>Marketplace Products</div>
+          <div className="text-xs t-text-4 mt-0.5">{products.length} products total</div>
+        </div>
+        <button onClick={openAdd} className="btn-primary text-sm px-4 py-2 inline-flex items-center gap-2">
+          <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>+</span> Add Product
+        </button>
+      </div>
+
+      {/* Add / Edit Form */}
+      {showForm && (
+        <div className="card space-y-4">
+          <div className="font-bold t-text">{editingId ? 'Edit Product' : 'New Product'}</div>
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="input-label">Product Name *</label>
+                <input className="input" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Premium Membership Kit" />
+              </div>
+              <div>
+                <label className="input-label">Price (₹) *</label>
+                <input className="input" type="number" required min="1" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="1000" />
+              </div>
+              <div>
+                <label className="input-label">Category</label>
+                <select className="input" value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}>
+                  <option value="">No category</option>
+                  {(categories as any[]).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="input-label">Coupon Split % (max coupon usage)</label>
+                <input className="input" type="number" min="0" max="100" value={form.couponSplitPct} onChange={e => setForm(f => ({ ...f, couponSplitPct: e.target.value }))} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="input-label">Image URL</label>
+                <input className="input" value={form.imageUrl} onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="https://..." />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="input-label">Description</label>
+                <textarea className="input" rows={2} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Short product description..." />
+              </div>
+              <div className="sm:col-span-2 flex items-center gap-2">
+                <input type="checkbox" id="isActive" checked={form.isActive as boolean} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} className="w-4 h-4 rounded" />
+                <label htmlFor="isActive" className="text-sm t-text-2 cursor-pointer">Visible in shop</label>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={closeForm} className="btn-secondary flex-1">Cancel</button>
+              <button type="submit" disabled={creating || updating} className="btn-primary flex-1">
+                {creating || updating ? 'Saving...' : editingId ? 'Save Changes' : 'Create Product'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Products Grid */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => <div key={i} className="skeleton h-40 rounded-2xl" />)}
+        </div>
+      ) : products.length === 0 ? (
+        <div className="card text-center py-12">
+          <div className="text-4xl mb-3">📦</div>
+          <div className="font-semibold t-text mb-1">No products yet</div>
+          <div className="text-sm t-text-4">Click "Add Product" to create your first product</div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {(products as any[]).map((p: any) => (
+            <div key={p.id} className="relative rounded-2xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' }}>
+              {/* Image */}
+              {p.imageUrl ? (
+                <img src={p.imageUrl} alt={p.name} className="w-full h-36 object-cover" />
+              ) : (
+                <div className="w-full h-36 flex items-center justify-center" style={{ background: 'var(--color-overlay)' }}>
+                  <ShoppingBagIcon size={36} />
+                </div>
+              )}
+              {/* Status badge */}
+              <div className="absolute top-2 right-2">
+                <span className={`badge font-bold text-xs ${p.isActive ? 'badge-active' : 'badge-pending'}`}>{p.isActive ? 'Active' : 'Hidden'}</span>
+              </div>
+              <div className="p-4">
+                <div className="font-bold t-text truncate" style={{ fontSize: '0.9375rem' }}>{p.name}</div>
+                {p.category && <div className="text-xs t-text-4 mt-0.5">{p.category.name}</div>}
+                <div className="flex items-center justify-between mt-2">
+                  <div className="font-mono font-black text-brand-400" style={{ fontSize: '1.1rem' }}>₹{p.price.toLocaleString('en-IN')}</div>
+                  <div className="text-xs t-text-4">Coupon up to {p.couponSplitPct}%</div>
+                </div>
+                {p.description && <div className="text-xs t-text-4 mt-2 line-clamp-2">{p.description}</div>}
+                <div className="flex gap-2 mt-3">
+                  <button onClick={() => openEdit(p)} className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'var(--color-overlay)', color: 'var(--color-text-2)', border: '1px solid var(--color-border)' }}>
+                    Edit
+                  </button>
+                  <button onClick={() => handleToggleActive(p)} className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: p.isActive ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)', color: p.isActive ? '#d97706' : '#059669', border: `1px solid ${p.isActive ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)'}` }}>
+                    {p.isActive ? 'Hide' : 'Show'}
+                  </button>
+                  <button onClick={() => handleDelete(p.id, p.name)} disabled={deleting} className="py-1.5 px-3 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(239,68,68,0.1)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.2)' }}>
+                    <XCircleIcon size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Revenue Splits Tab ────────────────────────────────────────────────────────
 function RevenueSplitsTab() {
   const { data, isLoading } = useGetRevenueSplitsQuery();
@@ -968,6 +1147,14 @@ function RevenueSplitsTab() {
   if (isLoading) return (
     <div className="grid grid-cols-2 gap-4">
       {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-24 rounded-2xl" />)}
+    </div>
+  );
+
+  if (!totals || totalRevenue === 0) return (
+    <div className="card text-center py-12">
+      <div className="text-4xl mb-3">📊</div>
+      <div className="font-semibold t-text mb-1">No revenue data yet</div>
+      <div className="text-sm t-text-4">Revenue splits are recorded when marketplace orders are placed</div>
     </div>
   );
 
@@ -1047,15 +1234,15 @@ export default function Admin() {
   const activeTab = (searchParams.get('tab') as AdminTab) || 'overview';
 
   const TAB_CONTENT: Record<AdminTab, JSX.Element> = {
-    overview:       <OverviewTab />,
-    requests:       <RequestsTab />,
-    members:        <MembersTab />,
-    payoutlog:      <PayoutLogTab />,
-    revenue:        <CompanyRevenueTab />,
-    gst:            <GSTTab />,
-    vendors:        <VendorsTab />,
-    cyclereport:    <CycleReportTab />,
-    revenuesplits:  <RevenueSplitsTab />,
+    overview:      <OverviewTab />,
+    requests:      <RequestsTab />,
+    members:       <MembersTab />,
+    payoutlog:     <PayoutLogTab />,
+    revenue:       <CompanyRevenueTab />,
+    gst:           <GSTTab />,
+    vendors:       <VendorsTab />,
+    products:      <ProductsTab />,
+    revenuesplits: <RevenueSplitsTab />,
   };
 
   const currentTab = TABS.find(t => t.id === activeTab);

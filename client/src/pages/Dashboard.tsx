@@ -411,7 +411,7 @@ function WelcomeBanner({ user, wallet }: { user: any; wallet: any }) {
 
 // ── Main Dashboard page ───────────────────────────────────────────────────────
 export default function Dashboard() {
-  const { memberId } = useSelector((s: RootState) => s.auth);
+  const { memberId, role } = useSelector((s: RootState) => s.auth);
 
   const { data: user,    isLoading: userLoading   } = useGetMeQuery();
   const { data: wallet,  isLoading: walletLoading  } = useGetWalletQuery();
@@ -432,10 +432,13 @@ export default function Dashboard() {
       <div>
         <div className="section-title">Quick Actions</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <QuickAction icon={<GlobeIcon size={20} />}         label="Network Tree"   description="View your referral network"   to="/network"   accentColor="var(--color-primary)" />
-          <QuickAction icon={<ShoppingCartIcon size={20} />}  label="Shop"           description="Browse & buy products"        to="/shop"      accentColor="var(--color-primary)" />
-          <QuickAction icon={<WalletIcon size={20} />}        label="Wallet"         description="Manage your 4 wallets"        to="/wallet"    accentColor="var(--color-primary)" />
-          <QuickAction icon={<ChartBarIcon size={20} />}      label="My Reports"     description="Earnings & activity summary"  to="/reports"   accentColor="var(--color-primary)" />
+          <QuickAction icon={<GlobeIcon size={20} />}        label="Network Tree"      description="View your referral network"     to="/network"              accentColor="var(--color-primary)" />
+          {role === 'ADMIN'
+            ? <QuickAction icon={<ShoppingCartIcon size={20} />} label="Manage Products" description="Add, edit & remove products"  to="/admin?tab=products"   accentColor="var(--color-primary)" />
+            : <QuickAction icon={<ShoppingCartIcon size={20} />} label="Shop"            description="Browse & buy products"        to="/shop"                 accentColor="var(--color-primary)" />
+          }
+          <QuickAction icon={<WalletIcon size={20} />}       label="Wallet"            description="Manage your 4 wallets"         to="/wallet"               accentColor="var(--color-primary)" />
+          <QuickAction icon={<ChartBarIcon size={20} />}     label="My Reports"        description="Earnings & activity summary"   to="/reports"              accentColor="var(--color-primary)" />
         </div>
       </div>
 
@@ -447,11 +450,11 @@ export default function Dashboard() {
       ) : stats && (
         <div>
           <div className="section-title">Network Overview</div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <StatCard label="My Level"     value={stats.level}                    sub="Current tier"     icon={<UserIcon size={16} />}    fullBg="#2563eb" fullBgText />
+          <div className={`grid gap-4 ${role === 'ADMIN' ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'}`}>
+            {role !== 'ADMIN' && <StatCard label="My Level"     value={stats.level}                    sub="Current tier"     icon={<UserIcon size={16} />}    fullBg="#2563eb" fullBgText />}
             <StatCard label="Direct Refs"  value={stats.direct}                   sub="Direct referrals" icon={<UsersIcon size={16} />}   fullBg="#22c55e" fullBgText />
             <StatCard label="Network Size" value={stats.realDownlines}            sub="Total members"    icon={<GlobeIcon size={16} />}   fullBg="#f04722" fullBgText />
-            <StatCard label="Cycle"        value={`#${user?.cyclePosition ?? 1}`} sub="Active position"  icon={<RefreshIcon size={16} />} fullBg="#8b5cf6" fullBgText />
+            {role !== 'ADMIN' && <StatCard label="Cycle"        value={`#${user?.cyclePosition ?? 1}`} sub="Active position"  icon={<RefreshIcon size={16} />} fullBg="#8b5cf6" fullBgText />}
           </div>
         </div>
       )}

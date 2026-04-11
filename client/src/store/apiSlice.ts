@@ -148,6 +148,14 @@ export const api = createApi({
       query: (body) => ({ url: '/products', method: 'POST', body }),
       invalidatesTags: ['Products'],
     }),
+    updateProduct: build.mutation({
+      query: ({ id, ...body }) => ({ url: `/products/${id}`, method: 'PUT', body }),
+      invalidatesTags: ['Products'],
+    }),
+    deleteProduct: build.mutation({
+      query: (id: string) => ({ url: `/products/${id}`, method: 'DELETE' }),
+      invalidatesTags: ['Products'],
+    }),
 
     // ── Orders ────────────────────────────────────────────────────────────
     placeOrder: build.mutation({
@@ -279,6 +287,8 @@ export const {
   useTransferPurchaseToIncomeMutation,
   useGetProductsQuery,
   useCreateProductMutation,
+  useUpdateProductMutation,
+  useDeleteProductMutation,
   usePlaceOrderMutation,
   useGetMyOrdersQuery,
   useGetCategoriesQuery,
