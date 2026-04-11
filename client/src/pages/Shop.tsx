@@ -161,7 +161,7 @@ export default function Shop() {
                 {/* Product image — full bleed top */}
                 <div className="relative w-full overflow-hidden" style={{ height: '200px', background: 'var(--color-surface-2)' }}>
                   {p.imageUrl ? (
-                    <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={p.imageUrl} alt={p.name} className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform duration-500" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <LeafIcon size={56} className="text-brand-600/30" />
