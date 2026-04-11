@@ -158,9 +158,13 @@ export default function Shop() {
             const inCart = cart.find(i => i.productId === p.id);
             return (
               <div key={p.id} className="card hover:border-brand-500/50 transition-all duration-300 flex flex-col group">
-                {/* Product image placeholder */}
-                <div className="w-full h-40 rounded-xl mb-4 flex items-center justify-center border group-hover:scale-[1.02] transition-transform" style={{ background: 'var(--color-overlay)', borderColor: 'var(--color-border)' }}>
-                  <LeafIcon size={48} className="text-brand-600/40" />
+                {/* Product image */}
+                <div className="w-full h-40 rounded-xl mb-4 overflow-hidden border group-hover:scale-[1.02] transition-transform flex items-center justify-center" style={{ background: 'var(--color-overlay)', borderColor: 'var(--color-border)' }}>
+                  {p.imageUrl ? (
+                    <img src={p.imageUrl} alt={p.name} className="w-full h-full object-contain p-2" />
+                  ) : (
+                    <LeafIcon size={48} className="text-brand-600/40" />
+                  )}
                 </div>
                 <div className="flex-1">
                   <h3 className="font-bold t-text mb-1">{p.name}</h3>
