@@ -452,8 +452,8 @@ export default function Dashboard() {
           <div className="section-title">Network Overview</div>
           <div className={`grid gap-4 ${role === 'ADMIN' ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'}`}>
             {role !== 'ADMIN' && <StatCard label="My Level"     value={stats.level}                    sub="Current tier"     icon={<UserIcon size={16} />}    fullBg="#2563eb" fullBgText />}
-            <StatCard label="Direct Refs"  value={stats.direct}                   sub="Direct referrals" icon={<UsersIcon size={16} />}   fullBg="#22c55e" fullBgText />
-            <StatCard label="Network Size" value={stats.realDownlines}            sub="Total members"    icon={<GlobeIcon size={16} />}   fullBg="#f04722" fullBgText />
+            <StatCard label="Direct Refs"  value={stats.direct}                   sub="Direct referrals" icon={<UsersIcon size={16} />}   fullBg="#1e8fe1" fullBgText />
+            <StatCard label="Network Size" value={stats.realDownlines}            sub="Total members"    icon={<GlobeIcon size={16} />}   fullBg="#ec7a38" fullBgText />
             {role !== 'ADMIN' && <StatCard label="Cycle"        value={`#${user?.cyclePosition ?? 1}`} sub="Active position"  icon={<RefreshIcon size={16} />} fullBg="#8b5cf6" fullBgText />}
           </div>
         </div>

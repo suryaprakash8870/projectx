@@ -1085,13 +1085,16 @@ function ProductsTab() {
           {(products as any[]).map((p: any) => (
             <div key={p.id} className="relative rounded-2xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' }}>
               {/* Image */}
-              {p.imageUrl ? (
-                <img src={p.imageUrl} alt={p.name} className="w-full h-36 object-cover" />
-              ) : (
-                <div className="w-full h-36 flex items-center justify-center" style={{ background: 'var(--color-overlay)' }}>
-                  <ShoppingBagIcon size={36} />
-                </div>
-              )}
+              <div className="w-full h-36 flex items-center justify-center overflow-hidden" style={{ background: 'var(--color-overlay)' }}>
+                {p.imageUrl ? (
+                  <img src={p.imageUrl} alt={p.name} className="w-full h-full object-contain p-2" />
+                ) : (
+                  <div className="flex flex-col items-center gap-1 t-text-4">
+                    <ShoppingBagIcon size={32} />
+                    <span style={{ fontSize: '0.6875rem' }}>No image</span>
+                  </div>
+                )}
+              </div>
               {/* Status badge */}
               <div className="absolute top-2 right-2">
                 <span className={`badge font-bold text-xs ${p.isActive ? 'badge-active' : 'badge-pending'}`}>{p.isActive ? 'Active' : 'Hidden'}</span>

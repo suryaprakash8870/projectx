@@ -51,7 +51,7 @@ const adminSubItems = [
   { tab: 'revenue',       label: 'Root Revenue' },
   { tab: 'gst',           label: 'GST Report' },
   { tab: 'vendors',       label: 'Vendors' },
-  { tab: 'cyclereport',   label: 'Cycle Report' },
+  { tab: 'products',      label: 'Products' },
   { tab: 'revenuesplits', label: 'Revenue Splits' },
 ];
 
@@ -104,7 +104,7 @@ export default function AppShell() {
 
   // Submenus default open — user closes manually
   const [reportsOpen, setReportsOpen] = useState(false);
-  const [adminOpen,   setAdminOpen]   = useState(false);
+  const [adminOpen,   setAdminOpen]   = useState(role === 'ADMIN');
   // Sidebar collapsed state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   // Flyout submenu for collapsed sidebar
@@ -242,26 +242,28 @@ export default function AppShell() {
           )}
         </div>
 
-        {/* Member status */}
-        <div className="px-3 py-3 shrink-0" style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-overlay)' }}>
-          {sidebarCollapsed ? (
-            <div className="flex justify-center">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-semibold uppercase tracking-widest t-text-4" style={{ fontSize: '0.6875rem' }}>Member Status</span>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse-soft" />
-                  <span className="text-emerald-400 font-semibold" style={{ fontSize: '0.75rem' }}>Active</span>
-                </div>
+        {/* Member status — hidden for admin */}
+        {role !== 'ADMIN' && (
+          <div className="px-3 py-3 shrink-0" style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-overlay)' }}>
+            {sidebarCollapsed ? (
+              <div className="flex justify-center">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
               </div>
-              <div className="font-mono text-brand-400 font-bold mt-1 truncate" style={{ fontSize: '0.9375rem' }}>{memberId || '—'}</div>
-              {name && <div className="t-text-3 mt-0.5 font-medium truncate" style={{ fontSize: '0.875rem' }}>{name}</div>}
-            </>
-          )}
-        </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="font-semibold uppercase tracking-widest t-text-4" style={{ fontSize: '0.6875rem' }}>Member Status</span>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse-soft" />
+                    <span className="text-emerald-400 font-semibold" style={{ fontSize: '0.75rem' }}>Active</span>
+                  </div>
+                </div>
+                <div className="font-mono text-brand-400 font-bold mt-1 truncate" style={{ fontSize: '0.9375rem' }}>{memberId || '—'}</div>
+                {name && <div className="t-text-3 mt-0.5 font-medium truncate" style={{ fontSize: '0.875rem' }}>{name}</div>}
+              </>
+            )}
+          </div>
+        )}
 
 
         {/* Nav links */}
@@ -369,25 +371,6 @@ export default function AppShell() {
           )}
         </nav>
 
-        {/* Theme toggle + Logout */}
-        <div className="px-2 py-3 space-y-0.5" style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-overlay)' }}>
-          <button
-            onClick={toggleTheme}
-            className="nav-item w-full group"
-            title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {isDark ? <SunIcon size={24} /> : <MoonIcon size={24} />}
-            {!sidebarCollapsed && <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>}
-          </button>
-          <button
-            onClick={handleLogout}
-            className="nav-item w-full text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 group"
-            title={sidebarCollapsed ? 'Sign Out' : undefined}
-          >
-            {icons.logout}
-            {!sidebarCollapsed && <span>Sign Out</span>}
-          </button>
-        </div>
       </aside>
 
       {/* ── Main content ─────────────────────────────────────────────────── */}
