@@ -45,7 +45,7 @@ function StatCard({
         <div className={`font-black font-mono tabular-nums ${accentColor}`} style={{ fontSize: '1.625rem', lineHeight: 1 }}>
           {value}
         </div>
-        {subtext && <div className="help-text mt-1 truncate">{subtext}</div>}
+        {subtext && <div className="help-text mt-1 hidden sm:block">{subtext}</div>}
       </div>
     </div>
   );
