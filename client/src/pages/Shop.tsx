@@ -163,8 +163,14 @@ export default function Shop() {
                   {p.imageUrl ? (
                     <img src={p.imageUrl} alt={p.name} className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform duration-500" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <LeafIcon size={56} className="text-brand-600/30" />
+                    <div className="w-full h-full flex flex-col items-center justify-center gap-2"
+                      style={{ background: `linear-gradient(135deg, hsl(${(p.name.charCodeAt(0) * 37) % 360}, 55%, 70%) 0%, hsl(${(p.name.charCodeAt(0) * 37 + 60) % 360}, 55%, 55%) 100%)` }}>
+                      <span style={{ fontSize: '3.5rem', fontWeight: 900, color: 'rgba(255,255,255,0.9)', lineHeight: 1, textTransform: 'uppercase' }}>
+                        {p.name[0]}
+                      </span>
+                      <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.08em' }}>
+                        {p.name.split(' ').slice(0, 2).join(' ')}
+                      </span>
                     </div>
                   )}
                   {/* Cashback badge overlay */}
