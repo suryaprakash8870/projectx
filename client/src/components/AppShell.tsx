@@ -58,16 +58,15 @@ const adminSubItems = [
 // Mobile bottom nav — 4 primary tabs + More
 const mobileBottomNav = [
   { to: '/dashboard', icon: icons.home,    label: 'Home' },
-  { to: '/network',   icon: icons.network, label: 'Network' },
   { to: '/wallet',    icon: icons.wallet,  label: 'Wallet' },
   { to: '/shop',      icon: icons.shop,    label: 'Shop' },
 ];
 
-// Pages shown in the "More" sheet
+// Pages shown in the "More" sheet (excludes bottom nav items)
 const mobileMoreItems = [
+  { to: '/network',      icon: icons.network, label: 'Network' },
   { to: '/join-request', icon: icons.join,    label: 'Join Request' },
   { to: '/vendor',       icon: icons.vendor,  label: 'Vendor' },
-  { to: '/reports',      icon: icons.reports, label: 'Reports' },
   { to: '/how-it-works', icon: icons.faq,     label: 'How It Works' },
   { to: '/profile',      icon: icons.profile, label: 'Profile' },
 ];
@@ -540,6 +539,14 @@ export default function AppShell() {
                   <span style={{ fontSize: '0.6875rem', marginTop: '2px' }}>{item.label}</span>
                 </NavLink>
               ))}
+              {/* Reports tab — opens reports sub-sheet */}
+              <button
+                onClick={() => setMobileSheet(s => s === 'reports' ? null : 'reports')}
+                className={`mobile-tab-item ${isOnReports || mobileSheet === 'reports' ? 'text-brand-500 bg-brand-500/10' : 't-text-4'}`}
+              >
+                {icons.reports}
+                <span style={{ fontSize: '0.6875rem', marginTop: '2px' }}>Reports</span>
+              </button>
               {/* More button — opens sheet with remaining pages */}
               <button
                 onClick={() => setMobileSheet(s => s === 'more' ? null : 'more')}
