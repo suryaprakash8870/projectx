@@ -55,12 +55,20 @@ const adminSubItems = [
   { tab: 'revenuesplits', label: 'Revenue Splits' },
 ];
 
-// Mobile bottom nav shows these 5 tabs (most used)
+// Mobile bottom nav — 4 primary tabs + More
 const mobileBottomNav = [
-  { to: '/dashboard',    icon: icons.home,    label: 'Home' },
-  { to: '/wallet',       icon: icons.wallet,  label: 'Wallet' },
-  { to: '/shop',         icon: icons.shop,    label: 'Shop' },
+  { to: '/dashboard', icon: icons.home,    label: 'Home' },
+  { to: '/network',   icon: icons.network, label: 'Network' },
+  { to: '/wallet',    icon: icons.wallet,  label: 'Wallet' },
+  { to: '/shop',      icon: icons.shop,    label: 'Shop' },
+];
+
+// Pages shown in the "More" sheet
+const mobileMoreItems = [
+  { to: '/join-request', icon: icons.join,    label: 'Join Request' },
+  { to: '/vendor',       icon: icons.vendor,  label: 'Vendor' },
   { to: '/reports',      icon: icons.reports, label: 'Reports' },
+  { to: '/how-it-works', icon: icons.faq,     label: 'How It Works' },
   { to: '/profile',      icon: icons.profile, label: 'Profile' },
 ];
 
@@ -103,7 +111,7 @@ export default function AppShell() {
   const [flyout, setFlyout] = useState<{ menu: 'reports' | 'admin'; top: number } | null>(null);
   const flyoutCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Mobile slide-up sheet
-  const [mobileSheet, setMobileSheet] = useState<'reports' | 'admin' | null>(null);
+  const [mobileSheet, setMobileSheet] = useState<'reports' | 'admin' | 'more' | null>(null);
 
   function openFlyout(menu: 'reports' | 'admin', e: React.MouseEvent<HTMLButtonElement>) {
     if (flyoutCloseTimer.current) clearTimeout(flyoutCloseTimer.current);
@@ -452,9 +460,23 @@ export default function AppShell() {
                 <div className="w-10 h-1 rounded-full" style={{ background: 'var(--color-border-2)' }} />
               </div>
               <div className="px-4 py-2 font-bold t-text" style={{ fontSize: '1rem', borderBottom: '1px solid var(--color-border)' }}>
-                {mobileSheet === 'reports' ? 'Reports' : 'Admin Panel'}
+                {mobileSheet === 'reports' ? 'Reports' : mobileSheet === 'more' ? 'More' : 'Admin Panel'}
               </div>
               <div className="px-3 py-2 space-y-1 max-h-72 overflow-y-auto">
+                {mobileSheet === 'more' && mobileMoreItems.map(item => {
+                  const isActive = location.pathname === item.to;
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      onClick={() => setMobileSheet(null)}
+                      className={`nav-item${isActive ? ' active' : ''}`}
+                    >
+                      <span className="w-5 h-5 shrink-0">{item.icon}</span>
+                      <span>{item.label}</span>
+                    </NavLink>
+                  );
+                })}
                 {mobileSheet === 'reports' && reportsSubItems.map(sub => {
                   const isActive = isOnReports && currentReportSection === sub.section;
                   return (
@@ -527,28 +549,25 @@ export default function AppShell() {
               </button>
             </>
           ) : (
-            mobileNav.map((item) => {
-              const isReports = item.to === '/reports';
-              if (isReports) {
-                return (
-                  <button
-                    key={item.to}
-                    onClick={() => setMobileSheet(s => s === 'reports' ? null : 'reports')}
-                    className={`mobile-tab-item ${isOnReports || mobileSheet === 'reports' ? 'text-brand-500 bg-brand-500/10' : 't-text-4'}`}
-                  >
-                    {item.icon}
-                    <span style={{ fontSize: '0.6875rem', marginTop: '2px' }}>{item.label}</span>
-                  </button>
-                );
-              }
-              return (
+            <>
+              {mobileBottomNav.map((item) => (
                 <NavLink key={item.to} to={item.to}
                   className={({ isActive }) => `mobile-tab-item ${isActive ? 'text-brand-500 bg-brand-500/10' : 't-text-4'}`}>
                   {item.icon}
                   <span style={{ fontSize: '0.6875rem', marginTop: '2px' }}>{item.label}</span>
                 </NavLink>
-              );
-            })
+              ))}
+              {/* More button — opens sheet with remaining pages */}
+              <button
+                onClick={() => setMobileSheet(s => s === 'more' ? null : 'more')}
+                className={`mobile-tab-item ${mobileSheet === 'more' ? 'text-brand-500 bg-brand-500/10' : 't-text-4'}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.7} stroke="currentColor" className="w-6 h-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                </svg>
+                <span style={{ fontSize: '0.6875rem', marginTop: '2px' }}>More</span>
+              </button>
+            </>
           )}
         </nav>
       </div>
