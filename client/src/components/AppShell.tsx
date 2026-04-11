@@ -22,7 +22,7 @@ const icons = {
 };
 
 const memberNav = [
-  { to: '/dashboard',    icon: icons.home,    label: 'Home' },
+  { to: '/dashboard',    icon: icons.home,    label: 'Dashboard' },
   { to: '/network',      icon: icons.network, label: 'Network' },
   { to: '/join-request', icon: icons.join,    label: 'Join' },
   { to: '/shop',         icon: icons.shop,    label: 'Shop' },
@@ -111,6 +111,8 @@ export default function AppShell() {
   const flyoutCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Mobile slide-up sheet
   const [mobileSheet, setMobileSheet] = useState<'reports' | 'admin' | 'more' | null>(null);
+  // Desktop user dropdown
+  const [desktopUserOpen, setDesktopUserOpen] = useState(false);
 
   function openFlyout(menu: 'reports' | 'admin', e: React.MouseEvent<HTMLButtonElement>) {
     if (flyoutCloseTimer.current) clearTimeout(flyoutCloseTimer.current);
@@ -160,23 +162,8 @@ export default function AppShell() {
           </div>
         </div>
 
-        {/* Right: member chip + theme + logout */}
+        {/* Right: theme + user dropdown */}
         <div className="flex items-center gap-2">
-          <div
-            className="flex items-center gap-2.5 px-3 py-2 rounded-2xl"
-            style={{ background: 'var(--color-overlay)', border: '1px solid var(--color-border)' }}
-          >
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-xs shrink-0"
-              style={{ background: 'var(--color-primary)' }}
-            >
-              {(name || 'U')[0].toUpperCase()}
-            </div>
-            <div className="leading-tight">
-              <div className="font-bold t-text truncate max-w-[120px]" style={{ fontSize: '0.8125rem' }}>{name || 'Member'}</div>
-              <div className="font-mono t-text-4 truncate" style={{ fontSize: '0.6875rem' }}>{memberId}</div>
-            </div>
-          </div>
           <button
             onClick={toggleTheme}
             className="flex items-center justify-center rounded-xl t-text-3 hover:t-text transition-colors"
@@ -185,14 +172,64 @@ export default function AppShell() {
           >
             {isDark ? <SunIcon size={18} /> : <MoonIcon size={18} />}
           </button>
-          <button
-            onClick={handleLogout}
-            className="flex items-center justify-center rounded-xl transition-colors"
-            style={{ background: 'var(--color-overlay)', border: '1px solid var(--color-border)', width: '40px', height: '40px', color: 'var(--color-text-4)' }}
-            title="Sign out"
-          >
-            {icons.logout}
-          </button>
+
+          {/* User avatar dropdown */}
+          <div className="relative">
+            {desktopUserOpen && (
+              <div className="fixed inset-0 z-40" onClick={() => setDesktopUserOpen(false)} />
+            )}
+            <button
+              onClick={() => setDesktopUserOpen(o => !o)}
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl transition-colors"
+              style={{ background: 'var(--color-overlay)', border: '1px solid var(--color-border)' }}
+            >
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-xs shrink-0" style={{ background: 'var(--color-primary)' }}>
+                {(name || 'U')[0].toUpperCase()}
+              </div>
+              <div className="leading-tight text-left">
+                <div className="font-bold t-text truncate max-w-[120px]" style={{ fontSize: '0.8125rem' }}>{name || 'Member'}</div>
+                <div className="font-mono t-text-4 truncate" style={{ fontSize: '0.6875rem' }}>{memberId}</div>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 t-text-4 shrink-0">
+                <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+              </svg>
+            </button>
+
+            {desktopUserOpen && (
+              <div className="absolute right-0 top-full mt-2 rounded-2xl shadow-xl z-50 overflow-hidden"
+                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', minWidth: 210, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+                {/* Header */}
+                <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-2)' }}>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0" style={{ background: 'var(--color-primary)' }}>
+                      {(name || 'U')[0].toUpperCase()}
+                    </div>
+                    <div className="leading-tight min-w-0">
+                      <div className="font-bold t-text truncate" style={{ fontSize: '0.875rem' }}>{name || 'Member'}</div>
+                      <div className="font-mono t-text-4 truncate" style={{ fontSize: '0.6875rem' }}>{memberId}</div>
+                    </div>
+                  </div>
+                </div>
+                {[
+                  { label: 'Profile', to: '/profile', icon: icons.profile },
+                  { label: 'Wallet',  to: '/wallet',  icon: icons.wallet  },
+                ].map(item => (
+                  <NavLink key={item.to} to={item.to} onClick={() => setDesktopUserOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 t-text-2 hover:t-text transition-colors"
+                    style={{ borderBottom: '1px solid var(--color-border)', fontSize: '0.875rem', fontWeight: 500 }}>
+                    <span className="w-5 h-5 t-text-4 shrink-0">{item.icon}</span>
+                    {item.label}
+                  </NavLink>
+                ))}
+                <button onClick={() => { setDesktopUserOpen(false); handleLogout(); }}
+                  className="flex items-center gap-3 px-4 py-3 w-full text-left transition-colors"
+                  style={{ fontSize: '0.875rem', fontWeight: 500, color: '#ef4444' }}>
+                  <span className="w-5 h-5 shrink-0">{icons.logout}</span>
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -241,28 +278,6 @@ export default function AppShell() {
           )}
         </div>
 
-        {/* Member status — hidden for admin */}
-        {role !== 'ADMIN' && (
-          <div className="px-3 py-3 shrink-0" style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-overlay)' }}>
-            {sidebarCollapsed ? (
-              <div className="flex justify-center">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="font-semibold uppercase tracking-widest t-text-4" style={{ fontSize: '0.6875rem' }}>Member Status</span>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse-soft" />
-                    <span className="text-emerald-400 font-semibold" style={{ fontSize: '0.75rem' }}>Active</span>
-                  </div>
-                </div>
-                <div className="font-mono text-brand-400 font-bold mt-1 truncate" style={{ fontSize: '0.9375rem' }}>{memberId || '—'}</div>
-                {name && <div className="t-text-3 mt-0.5 font-medium truncate" style={{ fontSize: '0.875rem' }}>{name}</div>}
-              </>
-            )}
-          </div>
-        )}
 
 
         {/* Nav links */}
