@@ -390,12 +390,12 @@ export default function AppShell() {
             </div>
             <div>
               <div className="font-display font-bold t-text" style={{ fontSize: '1rem' }}>Plan-I</div>
-              {name && <div className="t-text-4 truncate max-w-[140px]" style={{ fontSize: '0.75rem' }}>{name}</div>}
+              <div className="t-text-4" style={{ fontSize: '0.6875rem' }}>Network Platform</div>
             </div>
           </div>
 
           <div className="flex items-center gap-1.5">
-            {/* Theme toggle — larger touch target */}
+            {/* Theme toggle */}
             <button
               onClick={toggleTheme}
               className="flex items-center justify-center rounded-xl t-text-3 transition-colors"
@@ -405,15 +405,83 @@ export default function AppShell() {
               {isDark ? <SunIcon size={20} /> : <MoonIcon size={20} />}
             </button>
 
-            {/* Logout — clearly labeled on mobile */}
-            <button
-              onClick={handleLogout}
-              className="flex items-center justify-center rounded-xl t-text-3 hover:text-rose-500 transition-colors"
-              style={{ background: 'var(--color-overlay)', width: '40px', height: '40px' }}
-              aria-label="Sign out"
-            >
-              {icons.logout}
-            </button>
+            {/* User avatar chip with dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setMobileSheet(s => s === 'user' as any ? null : 'user' as any)}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl transition-colors"
+                style={{ background: 'var(--color-overlay)', border: '1px solid var(--color-border)' }}
+                aria-label="User menu"
+              >
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-xs shrink-0"
+                  style={{ background: 'var(--color-primary)' }}
+                >
+                  {(name || 'U')[0].toUpperCase()}
+                </div>
+                <div className="leading-tight text-left hidden xs:block" style={{ maxWidth: 90 }}>
+                  <div className="font-bold t-text truncate" style={{ fontSize: '0.75rem' }}>{name || 'Member'}</div>
+                  <div className="font-mono t-text-4 truncate" style={{ fontSize: '0.625rem' }}>{memberId}</div>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 t-text-4 shrink-0">
+                  <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                </svg>
+              </button>
+
+              {/* Dropdown backdrop */}
+              {(mobileSheet as any) === 'user' && (
+                <div className="fixed inset-0 z-40" onClick={() => setMobileSheet(null)} />
+              )}
+              {/* Dropdown */}
+              {(mobileSheet as any) === 'user' && (
+                <div
+                  className="absolute right-0 top-full mt-2 rounded-2xl shadow-xl z-50 overflow-hidden"
+                  style={{
+                    background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
+                    minWidth: 200,
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+                  }}
+                >
+                  {/* User info header */}
+                  <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-2)' }}>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0" style={{ background: 'var(--color-primary)' }}>
+                        {(name || 'U')[0].toUpperCase()}
+                      </div>
+                      <div className="leading-tight min-w-0">
+                        <div className="font-bold t-text truncate" style={{ fontSize: '0.875rem' }}>{name || 'Member'}</div>
+                        <div className="font-mono t-text-4 truncate" style={{ fontSize: '0.6875rem' }}>{memberId}</div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Menu items */}
+                  {[
+                    { label: 'Profile', to: '/profile', icon: icons.profile },
+                    { label: 'Wallet', to: '/wallet', icon: icons.wallet },
+                  ].map(item => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      onClick={() => setMobileSheet(null)}
+                      className="flex items-center gap-3 px-4 py-3 t-text-2 hover:t-text transition-colors"
+                      style={{ borderBottom: '1px solid var(--color-border)', fontSize: '0.875rem', fontWeight: 500 }}
+                    >
+                      <span className="w-5 h-5 t-text-4 shrink-0">{item.icon}</span>
+                      {item.label}
+                    </NavLink>
+                  ))}
+                  <button
+                    onClick={() => { setMobileSheet(null); handleLogout(); }}
+                    className="flex items-center gap-3 px-4 py-3 w-full text-left transition-colors"
+                    style={{ fontSize: '0.875rem', fontWeight: 500, color: '#ef4444' }}
+                  >
+                    <span className="w-5 h-5 shrink-0">{icons.logout}</span>
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -425,7 +493,7 @@ export default function AppShell() {
         </main>
 
         {/* ── Mobile slide-up submenu sheet ───────────────────────────── */}
-        {mobileSheet && (
+        {mobileSheet && mobileSheet !== ('user' as any) && (
           <>
             {/* Backdrop */}
             <div
