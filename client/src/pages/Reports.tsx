@@ -1,4 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store/store';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -87,6 +89,7 @@ function ChartTooltip({ active, payload, label }: any) {
 export default function Reports() {
   const [searchParams] = useSearchParams();
   const activeSection = (searchParams.get('section') as ReportSection) || 'summary';
+  const { role } = useSelector((s: RootState) => s.auth);
 
   const { data: me,       isLoading: meLoading       } = useGetMeQuery();
   const { data: wallet,   isLoading: walletLoading   } = useGetWalletQuery();
@@ -106,7 +109,8 @@ export default function Reports() {
   const totalDebit  = transactions.filter(t => t.type === 'DEBIT' ).reduce((s, t) => s + t.amount, 0);
 
   // Credit by wallet type
-  const creditByWallet = ['COUPON', 'PURCHASE', 'INCOME', 'GST'].map(f => ({
+  const walletFields = role === 'ADMIN' ? ['COUPON', 'PURCHASE', 'INCOME', 'GST'] : ['COUPON', 'PURCHASE', 'INCOME'];
+  const creditByWallet = walletFields.map(f => ({
     name: f.charAt(0) + f.slice(1).toLowerCase(),
     value: transactions.filter(t => t.type === 'CREDIT' && t.field === f).reduce((s, t) => s + t.amount, 0),
     fill: WALLET_COLORS[f as keyof typeof WALLET_COLORS].fill,
@@ -135,11 +139,11 @@ export default function Reports() {
     { name: 'Coupon',   value: wallet.couponBalance,   fill: '#f59e0b' },
     { name: 'Purchase', value: wallet.purchaseBalance, fill: '#3b82f6' },
     { name: 'Income',   value: wallet.incomeBalance,   fill: '#10b981' },
-    { name: 'GST',      value: wallet.gstBalance,      fill: '#8b5cf6' },
+    ...(role === 'ADMIN' ? [{ name: 'GST', value: wallet.gstBalance, fill: '#8b5cf6' }] : []),
   ].filter(d => d.value > 0) : [];
 
   const totalWalletBalance = wallet
-    ? (wallet.couponBalance + wallet.purchaseBalance + wallet.incomeBalance + wallet.gstBalance)
+    ? (wallet.couponBalance + wallet.purchaseBalance + wallet.incomeBalance + (role === 'ADMIN' ? wallet.gstBalance : 0))
     : 0;
 
   // Orders summary
@@ -254,7 +258,7 @@ export default function Reports() {
                   ['Coupon',   wallet?.couponBalance   ?? 0, 'COUPON'],
                   ['Purchase', wallet?.purchaseBalance ?? 0, 'PURCHASE'],
                   ['Income',   wallet?.incomeBalance   ?? 0, 'INCOME'],
-                  ['GST',      wallet?.gstBalance      ?? 0, 'GST'],
+                  ...(role === 'ADMIN' ? [['GST', wallet?.gstBalance ?? 0, 'GST']] : []),
                 ] as [string, number, string][]).map(([name, amount, key]) => {
                   const pct = totalWalletBalance > 0 ? (amount / totalWalletBalance) * 100 : 0;
                   const wc  = WALLET_COLORS[key as keyof typeof WALLET_COLORS];

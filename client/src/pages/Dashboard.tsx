@@ -475,7 +475,7 @@ export default function Dashboard() {
               <WalletCard label="Coupon Wallet"   amount={wallet?.couponBalance   ?? 0} subtitle="Up to 50% usage per purchase"  accentColor="var(--color-border-2)"  icon={<TagIcon size={20} />} />
               <WalletCard label="Purchase Wallet" amount={wallet?.purchaseBalance ?? 0} subtitle="2.5% cashback from purchases"   accentColor="var(--color-border-2)"  icon={<ShoppingBagIcon size={20} />} />
               <WalletCard label="Income Wallet"   amount={wallet?.incomeBalance   ?? 0} subtitle="Earned from referral payouts"   accentColor="var(--color-border-2)"  icon={<BanknotesIcon size={20} />} />
-              <WalletCard label="GST Wallet"      amount={wallet?.gstBalance      ?? 0} subtitle="Goods & Services Tax tracking"  accentColor="var(--color-border-2)"  icon={<ReceiptIcon size={20} />} />
+              {role === 'ADMIN' && <WalletCard label="GST Wallet"      amount={wallet?.gstBalance      ?? 0} subtitle="Goods & Services Tax tracking"  accentColor="var(--color-border-2)"  icon={<ReceiptIcon size={20} />} />}
             </>
           )}
         </div>

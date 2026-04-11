@@ -527,7 +527,7 @@ export default function Landing() {
                       {searchParams.get('leg')?.toUpperCase() === 'LEFT' || searchParams.get('leg')?.toUpperCase() === 'RIGHT' ? (
                         <div className={`flex items-center justify-center gap-3 rounded-xl p-3 border font-semibold ${regForm.leg === 'LEFT' ? 'bg-brand-500/10 border-brand-500/30 text-brand-700' : 'bg-accent-500/10 border-accent-500/30 text-amber-700'}`}>
                           {regForm.leg === 'LEFT' ? <ArrowLeftIcon size={16} /> : <ArrowRightIcon size={16} />}
-                          {regForm.leg} Leg
+                          {regForm.leg}
                           <span style={{ fontSize: '0.6rem', opacity: 0.5, marginLeft: 'auto', border: '1px solid currentColor', borderRadius: '4px', padding: '1px 5px' }}>LOCKED</span>
                         </div>
                       ) : (

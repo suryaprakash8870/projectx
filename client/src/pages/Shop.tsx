@@ -102,10 +102,6 @@ export default function Shop() {
               <div className="text-xs text-blue-600 font-bold uppercase tracking-wider">Income</div>
               <div className="font-mono text-xl font-black t-text-1">₹{wallet.incomeBalance.toLocaleString('en-IN')}</div>
             </div>
-            <div>
-              <div className="text-xs text-purple-600 font-bold uppercase tracking-wider">GST</div>
-              <div className="font-mono text-xl font-black t-text-1">₹{wallet.gstBalance?.toLocaleString('en-IN') ?? '0'}</div>
-            </div>
           </div>
           <div className="text-xs t-text-4">Earn 2.5% cashback on every purchase</div>
         </div>

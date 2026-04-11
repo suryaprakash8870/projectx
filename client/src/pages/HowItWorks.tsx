@@ -63,7 +63,7 @@ export default function HowItWorks() {
           {[
             { label: 'Payouts to 3 receivers (₹250 × 3)', amount: '₹750', color: 'text-emerald-400', bar: 75, barColor: 'bg-emerald-500' },
             { label: 'GST (18%)',                          amount: '₹180', color: 'text-amber-400',   bar: 18, barColor: 'bg-amber-500' },
-            { label: 'Company fee',                        amount: '₹70',  color: 'text-[var(--color-text-3)]', bar: 7, barColor: 'bg-brand-500' },
+            { label: 'Platform fee',                       amount: '₹70',  color: 'text-[var(--color-text-3)]', bar: 7, barColor: 'bg-brand-500' },
           ].map(item => (
             <div key={item.label} className="p-4 rounded-xl" style={{ background: 'var(--color-overlay)' }}>
               <div className="flex items-center justify-between mb-2">

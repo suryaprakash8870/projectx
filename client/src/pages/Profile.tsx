@@ -156,15 +156,15 @@ export default function Profile() {
       {/* Referral Links */}
       <div className="card space-y-3">
         <div className="section-title mb-0">Referral Links</div>
-        <p className="text-xs t-text-4">Share the correct leg link so new members land exactly where you want them in your binary tree.</p>
+        <p className="text-xs t-text-4">Share the correct link so new members land exactly where you want them in your binary tree.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* LEFT LEG */}
+          {/* LEFT */}
           <div className="rounded-2xl p-4" style={{ background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.25)' }}>
             <div className="flex items-center gap-2 mb-2.5">
               <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: '#0ea5e9', color: '#fff' }}>
                 <ChevronLeftIcon size={12} />
               </div>
-              <span className="text-xs font-black uppercase tracking-wider" style={{ color: '#0ea5e9' }}>Left Leg</span>
+              <span className="text-xs font-black uppercase tracking-wider" style={{ color: '#0ea5e9' }}>Left</span>
             </div>
             <div className="text-[10px] font-mono truncate mb-3 px-2 py-1.5 rounded-lg" style={{ background: 'var(--color-surface)', color: 'var(--color-text-3)', border: '1px solid rgba(14,165,233,0.2)' }}>
               {`${window.location.origin}/?ref=${memberId}&leg=LEFT`}
@@ -174,16 +174,16 @@ export default function Profile() {
               className="w-full text-xs font-bold py-2 rounded-xl transition-colors"
               style={{ background: '#0ea5e9', color: '#ffffff', border: 'none' }}
             >
-              Copy Left Leg Link
+              Copy Left Link
             </button>
           </div>
-          {/* RIGHT LEG */}
+          {/* RIGHT */}
           <div className="rounded-2xl p-4" style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.25)' }}>
             <div className="flex items-center gap-2 mb-2.5">
               <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: '#8b5cf6', color: '#fff' }}>
                 <ChevronRightIcon size={12} />
               </div>
-              <span className="text-xs font-black uppercase tracking-wider" style={{ color: '#8b5cf6' }}>Right Leg</span>
+              <span className="text-xs font-black uppercase tracking-wider" style={{ color: '#8b5cf6' }}>Right</span>
             </div>
             <div className="text-[10px] font-mono truncate mb-3 px-2 py-1.5 rounded-lg" style={{ background: 'var(--color-surface)', color: 'var(--color-text-3)', border: '1px solid rgba(139,92,246,0.2)' }}>
               {`${window.location.origin}/?ref=${memberId}&leg=RIGHT`}
@@ -193,7 +193,7 @@ export default function Profile() {
               className="w-full text-xs font-bold py-2 rounded-xl transition-colors"
               style={{ background: '#8b5cf6', color: '#ffffff', border: 'none' }}
             >
-              Copy Right Leg Link
+              Copy Right Link
             </button>
           </div>
         </div>
