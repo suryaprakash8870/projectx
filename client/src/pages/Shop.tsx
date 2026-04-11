@@ -157,48 +157,42 @@ export default function Shop() {
             const cashback = calculateCashback(p.price);
             const inCart = cart.find(i => i.productId === p.id);
             return (
-              <div key={p.id} className="card hover:border-brand-500/50 transition-all duration-300 flex flex-col group">
-                {/* Product image */}
-                <div className="w-full h-40 rounded-xl mb-4 overflow-hidden border group-hover:scale-[1.02] transition-transform flex items-center justify-center" style={{ background: 'var(--color-overlay)', borderColor: 'var(--color-border)' }}>
+              <div key={p.id} className="rounded-2xl overflow-hidden flex flex-col group transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                {/* Product image — full bleed top */}
+                <div className="relative w-full overflow-hidden" style={{ height: '200px', background: 'var(--color-surface-2)' }}>
                   {p.imageUrl ? (
-                    <img src={p.imageUrl} alt={p.name} className="w-full h-full object-contain p-2" />
+                    <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   ) : (
-                    <LeafIcon size={48} className="text-brand-600/40" />
+                    <div className="w-full h-full flex items-center justify-center">
+                      <LeafIcon size={56} className="text-brand-600/30" />
+                    </div>
                   )}
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold t-text mb-1">{p.name}</h3>
-                  {p.description && <p className="text-xs t-text-4 mb-3">{p.description}</p>}
-
-                  {/* Cashback badge */}
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-2.5 py-1.5 mb-3 inline-block">
-                    <div className="text-xs font-bold text-emerald-600 flex items-center gap-1"><CurrencyIcon size={12} /> 2.5% Cashback</div>
-                    <div className="text-[10px] text-emerald-700/70 font-medium">₹{cashback.toFixed(2)} earned back</div>
-                  </div>
-
-                  {/* Cost breakdown */}
-                  <div className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2.5 py-2 mb-3">
-                    <div className="text-[10px] font-bold t-text-4 uppercase tracking-wider mb-2">Payment Split</div>
-                    <div className="flex items-center gap-2 text-xs mb-1.5">
-                      <span className="w-2 h-2 bg-amber-500 rounded-full" />
-                      <span className="t-text-2 font-medium">Coupon: ₹{coupon}</span>
-                      <span className="t-text-5 ml-auto text-[10px]">({p.couponSplitPct}%)</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="w-2 h-2 bg-emerald-500 rounded-full" />
-                      <span className="t-text-2 font-medium">Income: ₹{cash}</span>
-                      <span className="t-text-5 ml-auto text-[10px]">({100 - p.couponSplitPct}%)</span>
-                    </div>
+                  {/* Cashback badge overlay */}
+                  <div className="absolute top-3 right-3 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+                    2.5% cashback
                   </div>
                 </div>
-                <div className="flex items-center justify-between mt-2">
-                  <span className="font-bold t-text font-mono text-lg">₹{p.price}</span>
-                  <button
-                    onClick={() => { addToCart(p); setCheckout({ productId: p.id, name: p.name, price: p.price, qty: inCart ? inCart.qty + 1 : 1, couponSplitPct: p.couponSplitPct }); }}
-                    className="btn-primary text-xs py-1.5 px-3"
-                  >
-                    {inCart ? `In Cart (${inCart.qty})` : '+ Add to Cart'}
-                  </button>
+
+                {/* Card body */}
+                <div className="flex flex-col flex-1 p-4">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <h3 className="font-bold t-text text-base leading-tight">{p.name}</h3>
+                    <span className="font-black font-mono t-text shrink-0 text-base">₹{p.price}</span>
+                  </div>
+                  {p.description && (
+                    <p className="text-xs t-text-4 mb-4 line-clamp-2 leading-relaxed">{p.description}</p>
+                  )}
+                  <div className="mt-auto">
+                    <button
+                      onClick={() => { addToCart(p); setCheckout({ productId: p.id, name: p.name, price: p.price, qty: inCart ? inCart.qty + 1 : 1, couponSplitPct: p.couponSplitPct }); }}
+                      className="w-full btn-primary py-2.5 text-sm font-semibold rounded-xl flex items-center justify-center gap-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+                      </svg>
+                      {inCart ? `In Cart (${inCart.qty})` : 'Add to Cart'}
+                    </button>
+                  </div>
                 </div>
               </div>
             );
