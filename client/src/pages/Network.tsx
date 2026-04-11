@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store/store';
 import { useGetDownlineQuery, useGetNetworkStatsQuery, useGetMeQuery } from '../store/apiSlice';
@@ -43,6 +44,79 @@ interface Connector {
   d: string;
 }
 
+// ── Shared tree data builder ──────────────────────────────────────────────────
+function buildTreeData(nodes: any[], me: any): { flatNodes: FlatNode[]; connectors: Connector[] } {
+  const childrenMap = new Map<string, { LEFT?: string; RIGHT?: string }>();
+  for (const n of nodes) {
+    if (!n.parentId) continue;
+    const existing = childrenMap.get(n.parentId) ?? {};
+    if (n.position === 'LEFT') existing.LEFT = n.userId;
+    else if (n.position === 'RIGHT') existing.RIGHT = n.userId;
+    childrenMap.set(n.parentId, existing);
+  }
+
+  const userMap = new Map<string, { memberId: string; name: string }>();
+  for (const n of nodes) {
+    userMap.set(n.userId, {
+      memberId: n.user?.memberId || n.userId?.slice(0, 8) || 'Unknown',
+      name: n.user?.name || 'Unknown',
+    });
+  }
+
+  const flatNodes: FlatNode[] = [];
+  const queue: Array<{ userId: string | null; level: number; index: number }> = [];
+  const rootId = (me?.id ?? me?.userId) ?? null;
+  queue.push({ userId: rootId, level: 0, index: 0 });
+
+  while (queue.length > 0) {
+    const item = queue.shift()!;
+    const { userId, level, index } = item;
+    if (level >= MAX_LEVELS) continue;
+
+    let node: NodeData;
+    if (!userId) {
+      node = { userId: `empty-${level}-${index}`, memberId: '', name: '', isEmpty: true };
+    } else if (level === 0) {
+      node = { userId, memberId: me?.memberId || 'Me', name: me?.name || 'You', isRoot: true };
+    } else {
+      const info = userMap.get(userId);
+      node = info
+        ? { userId, memberId: info.memberId, name: info.name }
+        : { userId, memberId: userId.slice(0, 8), name: 'Unknown' };
+    }
+
+    flatNodes.push({ level, index, node });
+
+    if (level < MAX_LEVELS - 1) {
+      const leftIndex = index * 2;
+      const rightIndex = index * 2 + 1;
+      if (userId && !node.isEmpty) {
+        const children = childrenMap.get(userId) ?? {};
+        queue.push({ userId: children.LEFT ?? null, level: level + 1, index: leftIndex });
+        queue.push({ userId: children.RIGHT ?? null, level: level + 1, index: rightIndex });
+      } else {
+        queue.push({ userId: null, level: level + 1, index: leftIndex });
+        queue.push({ userId: null, level: level + 1, index: rightIndex });
+      }
+    }
+  }
+
+  const connectors: Connector[] = [];
+  for (const fn of flatNodes) {
+    if (fn.level === 0) continue;
+    const parentLevel = fn.level - 1;
+    const parentIndex = Math.floor(fn.index / 2);
+    const x1 = cx(parentLevel, parentIndex);
+    const y1 = ty(parentLevel) + NODE_H;
+    const x2 = cx(fn.level, fn.index);
+    const y2 = ty(fn.level);
+    const midY = (y1 + y2) / 2;
+    connectors.push({ d: `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}` });
+  }
+
+  return { flatNodes, connectors };
+}
+
 // ── NodeCard ──────────────────────────────────────────────────────────────────
 interface NodeCardProps {
   flatNode: FlatNode;
@@ -54,8 +128,7 @@ function NodeCard({ flatNode, onHover, onHoverEnd }: NodeCardProps) {
   const { level, index, node } = flatNode;
   const left = cx(level, index) - NODE_W / 2;
   const top = ty(level);
-
-  const isRoot  = node.isRoot;
+  const isRoot = node.isRoot;
   const isEmpty = node.isEmpty;
 
   return (
@@ -84,68 +157,34 @@ function NodeCard({ flatNode, onHover, onHoverEnd }: NodeCardProps) {
       onMouseEnter={() => onHover && onHover(cx(level, index), top, node)}
       onMouseLeave={() => onHoverEnd && onHoverEnd()}
     >
-      {/* YOU pill */}
       {isRoot && (
         <div style={{
-          position: 'absolute',
-          top: -9,
-          left: 12,
-          background: '#0066ff',
-          color: '#fff',
-          fontSize: 8,
-          fontWeight: 800,
-          letterSpacing: '0.1em',
-          padding: '1px 7px',
-          borderRadius: 99,
-        }}>
-          YOU
-        </div>
+          position: 'absolute', top: -9, left: 12,
+          background: '#0066ff', color: '#fff',
+          fontSize: 8, fontWeight: 800, letterSpacing: '0.1em',
+          padding: '1px 7px', borderRadius: 99,
+        }}>YOU</div>
       )}
-
-      {/* Icon area */}
       <div style={{
-        width: 42,
-        height: 42,
-        borderRadius: '50%',
-        background: isEmpty
-          ? 'var(--color-surface-3)'
-          : 'linear-gradient(135deg, #e879f9 0%, #7c3aed 100%)',
+        width: 42, height: 42, borderRadius: '50%',
+        background: isEmpty ? 'var(--color-surface-3)' : 'linear-gradient(135deg, #e879f9 0%, #7c3aed 100%)',
         border: isEmpty ? '2px dashed var(--color-border-2)' : 'none',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-        color: isEmpty ? 'var(--color-text-4)' : '#fff',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0, color: isEmpty ? 'var(--color-text-4)' : '#fff',
       }}>
         <UserIcon size={22} />
       </div>
-
-      {/* Text area */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          fontSize: 13,
-          fontWeight: 600,
+          fontSize: 13, fontWeight: 600,
           color: isEmpty ? 'var(--color-text-4)' : 'var(--color-text)',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}>
-          {node.name || '—'}
-        </div>
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>{node.name || '—'}</div>
         <div style={{
-          fontSize: 11,
-          fontFamily: 'monospace',
-          color: isEmpty
-            ? 'var(--color-text-4)'
-            : isRoot
-            ? '#0066ff'
-            : 'var(--color-text-3)',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}>
-          {node.memberId || 'Empty'}
-        </div>
+          fontSize: 11, fontFamily: 'monospace',
+          color: isEmpty ? 'var(--color-text-4)' : isRoot ? '#0066ff' : 'var(--color-text-3)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>{node.memberId || 'Empty'}</div>
       </div>
     </div>
   );
@@ -155,18 +194,11 @@ function NodeCard({ flatNode, onHover, onHoverEnd }: NodeCardProps) {
 function HoverTooltip({ node, x, y }: { node: NodeData; x: number; y: number }) {
   return (
     <div style={{
-      position: 'absolute',
-      left: x - 110,
-      top: y + NODE_H + 8,
-      width: 220,
-      borderRadius: 12,
-      background: 'var(--color-surface)',
-      border: '1px solid var(--color-border-2)',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-      padding: '12px 14px',
-      pointerEvents: 'none',
-      zIndex: 100,
-      fontSize: 12,
+      position: 'absolute', left: x - 110, top: y + NODE_H + 8,
+      width: 220, borderRadius: 12,
+      background: 'var(--color-surface)', border: '1px solid var(--color-border-2)',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.15)', padding: '12px 14px',
+      pointerEvents: 'none', zIndex: 100, fontSize: 12,
     }}>
       <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-text)', marginBottom: 6 }}>
         {node.name || 'Empty Slot'}
@@ -179,12 +211,10 @@ function HoverTooltip({ node, x, y }: { node: NodeData; x: number; y: number }) 
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span style={{ color: 'var(--color-text-4)' }}>Status</span>
           <span style={{
-            fontWeight: 700,
-            fontSize: 11,
+            fontWeight: 700, fontSize: 11,
             color: node.isEmpty ? '#f59e0b' : '#10b981',
             background: node.isEmpty ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)',
-            padding: '1px 8px',
-            borderRadius: 99,
+            padding: '1px 8px', borderRadius: 99,
           }}>{node.isEmpty ? 'Empty' : 'Active'}</span>
         </div>
         {node.isRoot && (
@@ -198,12 +228,102 @@ function HoverTooltip({ node, x, y }: { node: NodeData; x: number; y: number }) 
   );
 }
 
+// ── StaticTreePreview ─────────────────────────────────────────────────────────
+function StaticTreePreview({ flatNodes, connectors, onClick }: {
+  flatNodes: FlatNode[];
+  connectors: Connector[];
+  onClick: () => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.3);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      const w = containerRef.current.offsetWidth;
+      setScale(Math.min(0.5, w / CANVAS_W));
+    }
+  }, []);
+
+  const previewH = CANVAS_H * scale + 24;
+
+  return (
+    <div
+      ref={containerRef}
+      onClick={onClick}
+      style={{
+        position: 'relative',
+        height: previewH,
+        borderRadius: 12,
+        border: '1px solid var(--color-border)',
+        background: 'var(--color-surface-2)',
+        overflow: 'hidden',
+        cursor: 'pointer',
+        userSelect: 'none',
+      }}
+    >
+      {/* Scaled static tree */}
+      <div style={{
+        transform: `scale(${scale})`,
+        transformOrigin: 'top center',
+        position: 'absolute',
+        left: '50%',
+        top: 12,
+        marginLeft: -(CANVAS_W / 2),
+        width: CANVAS_W,
+        height: CANVAS_H,
+        pointerEvents: 'none',
+      }}>
+        <svg style={{ position: 'absolute', top: 0, left: 0, width: CANVAS_W, height: CANVAS_H, overflow: 'visible' }}>
+          <defs>
+            <marker id="static-arrow" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+              <polygon points="0 0, 7 2.5, 0 5" fill="var(--color-border-2)" />
+            </marker>
+          </defs>
+          {connectors.map((c, i) => (
+            <path key={i} d={c.d} fill="none"
+              stroke="var(--color-border-2, var(--color-border))"
+              strokeWidth={1.5} markerEnd="url(#static-arrow)" />
+          ))}
+        </svg>
+        {flatNodes.map((fn) => (
+          <NodeCard key={`s-${fn.level}-${fn.index}`} flatNode={fn} />
+        ))}
+      </div>
+
+      {/* Click overlay */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'rgba(0,0,0,0.0)',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        paddingBottom: 12,
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 20, padding: '6px 14px',
+          fontSize: 12, fontWeight: 600,
+          color: 'var(--color-text-2)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          pointerEvents: 'none',
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+          </svg>
+          Tap to explore
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── PanZoomCanvas ─────────────────────────────────────────────────────────────
 interface PanZoomCanvasProps {
   children: React.ReactNode;
+  onResetRef?: (fn: () => void) => void;
 }
 
-function PanZoomCanvas({ children }: PanZoomCanvasProps) {
+function PanZoomCanvas({ children, onResetRef }: PanZoomCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
@@ -214,39 +334,36 @@ function PanZoomCanvas({ children }: PanZoomCanvasProps) {
   const [, forceUpdate] = useState(0);
   const rerender = useCallback(() => forceUpdate((n) => n + 1), []);
 
-  // Center on mount
-  useEffect(() => {
+  const resetView = useCallback(() => {
     if (containerRef.current) {
       const containerWidth = containerRef.current.offsetWidth;
       const rootCx = cx(0, 0);
-      posRef.current = {
-        x: containerWidth / 2 - rootCx * zoomRef.current,
-        y: 40,
-      };
+      zoomRef.current = 0.85;
+      posRef.current = { x: containerWidth / 2 - rootCx * 0.85, y: 40 };
       rerender();
     }
   }, [rerender]);
 
+  useEffect(() => {
+    resetView();
+  }, [resetView]);
+
+  useEffect(() => {
+    if (onResetRef) onResetRef(resetView);
+  }, [onResetRef, resetView]);
+
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     isDragging.current = true;
-    dragStart.current = {
-      x: e.clientX - posRef.current.x,
-      y: e.clientY - posRef.current.y,
-    };
+    dragStart.current = { x: e.clientX - posRef.current.x, y: e.clientY - posRef.current.y };
   }, []);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging.current) return;
-    posRef.current = {
-      x: e.clientX - dragStart.current.x,
-      y: e.clientY - dragStart.current.y,
-    };
+    posRef.current = { x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y };
     rerender();
   }, [rerender]);
 
-  const handleMouseUp = useCallback(() => {
-    isDragging.current = false;
-  }, []);
+  const handleMouseUp = useCallback(() => { isDragging.current = false; }, []);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
@@ -274,10 +391,7 @@ function PanZoomCanvas({ children }: PanZoomCanvasProps) {
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       isDragging.current = true;
-      dragStart.current = {
-        x: e.touches[0].clientX - posRef.current.x,
-        y: e.touches[0].clientY - posRef.current.y,
-      };
+      dragStart.current = { x: e.touches[0].clientX - posRef.current.x, y: e.touches[0].clientY - posRef.current.y };
     } else if (e.touches.length === 2) {
       isDragging.current = false;
       lastTouchDist.current = getTouchDist(e.touches);
@@ -287,10 +401,7 @@ function PanZoomCanvas({ children }: PanZoomCanvasProps) {
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
     if (e.touches.length === 1 && isDragging.current) {
-      posRef.current = {
-        x: e.touches[0].clientX - dragStart.current.x,
-        y: e.touches[0].clientY - dragStart.current.y,
-      };
+      posRef.current = { x: e.touches[0].clientX - dragStart.current.x, y: e.touches[0].clientY - dragStart.current.y };
       rerender();
     } else if (e.touches.length === 2 && lastTouchDist.current !== null) {
       const dist = getTouchDist(e.touches);
@@ -319,14 +430,9 @@ function PanZoomCanvas({ children }: PanZoomCanvasProps) {
   const handleZoomIn = useCallback(() => {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const cx2 = rect.width / 2;
-    const cy2 = rect.height / 2;
-    const oldZoom = zoomRef.current;
-    const newZoom = Math.min(3, oldZoom * 1.2);
-    posRef.current = {
-      x: cx2 - (cx2 - posRef.current.x) * (newZoom / oldZoom),
-      y: cy2 - (cy2 - posRef.current.y) * (newZoom / oldZoom),
-    };
+    const cx2 = rect.width / 2, cy2 = rect.height / 2;
+    const oldZoom = zoomRef.current, newZoom = Math.min(3, oldZoom * 1.2);
+    posRef.current = { x: cx2 - (cx2 - posRef.current.x) * (newZoom / oldZoom), y: cy2 - (cy2 - posRef.current.y) * (newZoom / oldZoom) };
     zoomRef.current = newZoom;
     rerender();
   }, [rerender]);
@@ -334,46 +440,25 @@ function PanZoomCanvas({ children }: PanZoomCanvasProps) {
   const handleZoomOut = useCallback(() => {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const cx2 = rect.width / 2;
-    const cy2 = rect.height / 2;
-    const oldZoom = zoomRef.current;
-    const newZoom = Math.max(0.2, oldZoom / 1.2);
-    posRef.current = {
-      x: cx2 - (cx2 - posRef.current.x) * (newZoom / oldZoom),
-      y: cy2 - (cy2 - posRef.current.y) * (newZoom / oldZoom),
-    };
+    const cx2 = rect.width / 2, cy2 = rect.height / 2;
+    const oldZoom = zoomRef.current, newZoom = Math.max(0.2, oldZoom / 1.2);
+    posRef.current = { x: cx2 - (cx2 - posRef.current.x) * (newZoom / oldZoom), y: cy2 - (cy2 - posRef.current.y) * (newZoom / oldZoom) };
     zoomRef.current = newZoom;
     rerender();
-  }, [rerender]);
-
-  const handleReset = useCallback(() => {
-    if (containerRef.current) {
-      const containerWidth = containerRef.current.offsetWidth;
-      const rootCx = cx(0, 0);
-      zoomRef.current = 0.85;
-      posRef.current = {
-        x: containerWidth / 2 - rootCx * 0.85,
-        y: 40,
-      };
-      rerender();
-    }
   }, [rerender]);
 
   const pos = posRef.current;
   const zoom = zoomRef.current;
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column' }}>
       <div
         ref={containerRef}
         style={{
-          overflow: 'hidden',
-          height: 480,
+          flex: 1, overflow: 'hidden',
           cursor: isDragging.current ? 'grabbing' : 'grab',
           touchAction: 'none',
           background: 'var(--color-surface-2)',
-          borderRadius: 12,
-          border: '1px solid var(--color-border)',
           userSelect: 'none',
         }}
         onMouseDown={handleMouseDown}
@@ -385,207 +470,137 @@ function PanZoomCanvas({ children }: PanZoomCanvasProps) {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <div
-          style={{
-            transform: `translate(${pos.x}px, ${pos.y}px) scale(${zoom})`,
-            transformOrigin: '0 0',
-            position: 'relative',
-            width: CANVAS_W,
-            height: CANVAS_H,
-          }}
-        >
+        <div style={{
+          transform: `translate(${pos.x}px, ${pos.y}px) scale(${zoom})`,
+          transformOrigin: '0 0',
+          position: 'relative',
+          width: CANVAS_W,
+          height: CANVAS_H,
+        }}>
           {children}
         </div>
       </div>
 
       {/* Zoom controls */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 12,
-          right: 12,
-          display: 'flex',
-          gap: 6,
-          zIndex: 10,
-        }}
-      >
+      <div style={{ position: 'absolute', bottom: 12, right: 12, display: 'flex', gap: 6, zIndex: 10 }}>
         {[
           { label: '+', onClick: handleZoomIn },
           { label: '−', onClick: handleZoomOut },
-          { label: 'Reset', onClick: handleReset },
         ].map((btn) => (
-          <button
-            key={btn.label}
-            onClick={btn.onClick}
-            style={{
-              padding: btn.label === 'Reset' ? '4px 10px' : '4px 10px',
-              fontSize: 13,
-              fontWeight: 600,
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 8,
-              color: 'var(--color-text-2)',
-              cursor: 'pointer',
-              minWidth: 32,
-            }}
-          >
-            {btn.label}
-          </button>
+          <button key={btn.label} onClick={btn.onClick} style={{
+            padding: '4px 10px', fontSize: 13, fontWeight: 600,
+            background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+            borderRadius: 8, color: 'var(--color-text-2)', cursor: 'pointer', minWidth: 32,
+          }}>{btn.label}</button>
         ))}
       </div>
 
-      {/* Hint */}
-      <p
-        style={{
-          textAlign: 'center',
-          fontSize: 11,
-          color: 'var(--color-text-4)',
-          marginTop: 8,
-        }}
-      >
-        Drag to pan · Scroll to zoom
+      <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--color-text-4)', marginTop: 6, flexShrink: 0 }}>
+        Drag to pan · Scroll / pinch to zoom
       </p>
     </div>
   );
 }
 
-// ── TreeVisualization ─────────────────────────────────────────────────────────
-interface TreeVisualizationProps {
-  nodes: any[];
-  me: any;
-}
-
-function TreeVisualization({ nodes, me }: TreeVisualizationProps) {
+// ── TreeModal ─────────────────────────────────────────────────────────────────
+function TreeModal({ flatNodes, connectors, onClose }: {
+  flatNodes: FlatNode[];
+  connectors: Connector[];
+  onClose: () => void;
+}) {
   const [tooltip, setTooltip] = useState<{ node: NodeData; x: number; y: number } | null>(null);
+  const resetFnRef = useRef<(() => void) | null>(null);
 
-  const { flatNodes, connectors } = useMemo(() => {
-    // Build children map: userId -> { LEFT?: userId, RIGHT?: userId }
-    const childrenMap = new Map<string, { LEFT?: string; RIGHT?: string }>();
-    for (const n of nodes) {
-      if (!n.parentId) continue;
-      const existing = childrenMap.get(n.parentId) ?? {};
-      if (n.position === 'LEFT') existing.LEFT = n.userId;
-      else if (n.position === 'RIGHT') existing.RIGHT = n.userId;
-      childrenMap.set(n.parentId, existing);
-    }
+  // Lock body scroll while modal open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
 
-    // Build user info lookup
-    const userMap = new Map<string, { memberId: string; name: string }>();
-    for (const n of nodes) {
-      userMap.set(n.userId, {
-        memberId: n.user?.memberId || n.userId?.slice(0, 8) || 'Unknown',
-        name: n.user?.name || 'Unknown',
-      });
-    }
+  return createPortal(
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(0,0,0,0.6)',
+        display: 'flex', flexDirection: 'column',
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{
+        flex: 1, display: 'flex', flexDirection: 'column',
+        margin: '0', background: 'var(--color-surface)',
+        overflow: 'hidden',
+      }}>
+        {/* Modal header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 16px', borderBottom: '1px solid var(--color-border)',
+          background: 'var(--color-surface)', flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <TreeIcon size={18} />
+            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-text)' }}>Network Tree</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => resetFnRef.current?.()}
+              style={{
+                padding: '5px 14px', fontSize: 12, fontWeight: 600,
+                background: 'var(--color-surface-2)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 8, color: 'var(--color-text-2)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 5,
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+              Reset
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                padding: '5px 10px', fontSize: 18, lineHeight: 1,
+                background: 'var(--color-surface-2)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 8, color: 'var(--color-text-3)', cursor: 'pointer',
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
 
-    // BFS
-    const flatNodes: FlatNode[] = [];
-    // Queue: [userId | null, level, index]
-    const queue: Array<{ userId: string | null; level: number; index: number }> = [];
-
-    const rootId = (me?.id ?? me?.userId) ?? null;
-    queue.push({ userId: rootId, level: 0, index: 0 });
-
-    while (queue.length > 0) {
-      const item = queue.shift()!;
-      const { userId, level, index } = item;
-
-      if (level >= MAX_LEVELS) continue;
-
-      let node: NodeData;
-      if (!userId) {
-        node = { userId: `empty-${level}-${index}`, memberId: '', name: '', isEmpty: true };
-      } else if (level === 0) {
-        // Root = me
-        node = {
-          userId,
-          memberId: me?.memberId || 'Me',
-          name: me?.name || 'You',
-          isRoot: true,
-        };
-      } else {
-        const info = userMap.get(userId);
-        if (info) {
-          node = { userId, memberId: info.memberId, name: info.name };
-        } else {
-          node = { userId, memberId: userId.slice(0, 8), name: 'Unknown' };
-        }
-      }
-
-      flatNodes.push({ level, index, node });
-
-      if (level < MAX_LEVELS - 1) {
-        const leftIndex = index * 2;
-        const rightIndex = index * 2 + 1;
-        if (userId && !node.isEmpty) {
-          const children = childrenMap.get(userId) ?? {};
-          queue.push({ userId: children.LEFT ?? null, level: level + 1, index: leftIndex });
-          queue.push({ userId: children.RIGHT ?? null, level: level + 1, index: rightIndex });
-        } else {
-          // Empty node: push empty children to keep grid aligned
-          queue.push({ userId: null, level: level + 1, index: leftIndex });
-          queue.push({ userId: null, level: level + 1, index: rightIndex });
-        }
-      }
-    }
-
-    // Build connectors
-    const connectors: Connector[] = [];
-    for (const fn of flatNodes) {
-      if (fn.level === 0) continue;
-      const parentLevel = fn.level - 1;
-      const parentIndex = Math.floor(fn.index / 2);
-
-      const x1 = cx(parentLevel, parentIndex);
-      const y1 = ty(parentLevel) + NODE_H; // bottom of parent card
-      const x2 = cx(fn.level, fn.index);
-      const y2 = ty(fn.level);             // top of child card
-      const midY = (y1 + y2) / 2;
-
-      connectors.push({ d: `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}` });
-    }
-
-    return { flatNodes, connectors };
-  }, [nodes, me]);
-
-  return (
-    <PanZoomCanvas>
-      <div style={{ position: 'relative', width: CANVAS_W, height: CANVAS_H }}>
-        {/* SVG connectors */}
-        <svg
-          style={{ position: 'absolute', top: 0, left: 0, width: CANVAS_W, height: CANVAS_H, overflow: 'visible', pointerEvents: 'none' }}
-        >
-          <defs>
-            <marker id="tree-arrow" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
-              <polygon points="0 0, 7 2.5, 0 5" fill="var(--color-border-2)" />
-            </marker>
-          </defs>
-          {connectors.map((c, i) => (
-            <path
-              key={i}
-              d={c.d}
-              fill="none"
-              stroke="var(--color-border-2, var(--color-border))"
-              strokeWidth={1.5}
-              markerEnd="url(#tree-arrow)"
-            />
-          ))}
-        </svg>
-
-        {/* Node cards */}
-        {flatNodes.map((fn) => (
-          <NodeCard
-            key={`${fn.level}-${fn.index}`}
-            flatNode={fn}
-            onHover={(x, y, node) => setTooltip({ node, x, y })}
-            onHoverEnd={() => setTooltip(null)}
-          />
-        ))}
-
-        {/* Hover tooltip */}
-        {tooltip && <HoverTooltip node={tooltip.node} x={tooltip.x} y={tooltip.y} />}
+        {/* Interactive canvas */}
+        <PanZoomCanvas onResetRef={(fn) => { resetFnRef.current = fn; }}>
+          <div style={{ position: 'relative', width: CANVAS_W, height: CANVAS_H }}>
+            <svg style={{ position: 'absolute', top: 0, left: 0, width: CANVAS_W, height: CANVAS_H, overflow: 'visible', pointerEvents: 'none' }}>
+              <defs>
+                <marker id="modal-arrow" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                  <polygon points="0 0, 7 2.5, 0 5" fill="var(--color-border-2)" />
+                </marker>
+              </defs>
+              {connectors.map((c, i) => (
+                <path key={i} d={c.d} fill="none"
+                  stroke="var(--color-border-2, var(--color-border))"
+                  strokeWidth={1.5} markerEnd="url(#modal-arrow)" />
+              ))}
+            </svg>
+            {flatNodes.map((fn) => (
+              <NodeCard
+                key={`m-${fn.level}-${fn.index}`}
+                flatNode={fn}
+                onHover={(x, y, node) => setTooltip({ node, x, y })}
+                onHoverEnd={() => setTooltip(null)}
+              />
+            ))}
+            {tooltip && <HoverTooltip node={tooltip.node} x={tooltip.x} y={tooltip.y} />}
+          </div>
+        </PanZoomCanvas>
       </div>
-    </PanZoomCanvas>
+    </div>,
+    document.body
   );
 }
 
@@ -596,62 +611,32 @@ function DownlineList({ nodes }: { nodes: any[] }) {
       {nodes.slice(0, 60).map((n: any) => {
         const isLeft = n.position === 'LEFT';
         return (
-          <div
-            key={n.userId}
-            className="flex items-center gap-3 p-3 rounded-xl border"
-            style={{
-              background: 'var(--color-surface)',
-              borderColor: 'var(--color-border)',
-            }}
-          >
-            <span
-              className="flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0"
-              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-3)' }}
-            >
+          <div key={n.userId} className="flex items-center gap-3 p-3 rounded-xl border"
+            style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+            <span className="flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0"
+              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-3)' }}>
               <UserIcon size={16} />
             </span>
             <div className="flex-1 min-w-0">
-              <div
-                className="font-mono text-sm font-semibold"
-                style={{ color: 'var(--color-brand-primary)' }}
-              >
+              <div className="font-mono text-sm font-semibold" style={{ color: 'var(--color-brand-primary)' }}>
                 {n.user?.memberId || n.userId}
               </div>
-              <div
-                className="text-xs truncate"
-                style={{ color: 'var(--color-text-4)' }}
-              >
+              <div className="text-xs truncate" style={{ color: 'var(--color-text-4)' }}>
                 {n.user?.name || 'Unknown'} · L{n.user?.level ?? '?'}
               </div>
             </div>
             {n.position && (
-              <span
-                className="text-[10px] font-bold px-2 py-0.5 rounded-md border"
-                style={
-                  isLeft
-                    ? {
-                        background: 'var(--color-surface-left, rgba(14,165,233,0.1))',
-                        color: 'var(--color-left, #38bdf8)',
-                        borderColor: 'var(--color-left, #38bdf8)',
-                      }
-                    : {
-                        background: 'var(--color-surface-right, rgba(139,92,246,0.1))',
-                        color: 'var(--color-right, #a78bfa)',
-                        borderColor: 'var(--color-right, #a78bfa)',
-                      }
-                }
-              >
-                {n.position}
-              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border" style={
+                isLeft
+                  ? { background: 'var(--color-surface-left, rgba(14,165,233,0.1))', color: 'var(--color-left, #38bdf8)', borderColor: 'var(--color-left, #38bdf8)' }
+                  : { background: 'var(--color-surface-right, rgba(139,92,246,0.1))', color: 'var(--color-right, #a78bfa)', borderColor: 'var(--color-right, #a78bfa)' }
+              }>{n.position}</span>
             )}
           </div>
         );
       })}
       {nodes.length > 60 && (
-        <p
-          className="text-center text-xs py-2"
-          style={{ color: 'var(--color-text-4)' }}
-        >
+        <p className="text-center text-xs py-2" style={{ color: 'var(--color-text-4)' }}>
           … and {nodes.length - 60} more
         </p>
       )}
@@ -667,8 +652,13 @@ export default function Network() {
   const { data: stats, isLoading: statsLoading } = useGetNetworkStatsQuery();
 
   const myMemberId = me?.memberId || authMemberId || 'You';
-
   const [view, setView] = useState<'tree' | 'list'>('tree');
+  const [treeModalOpen, setTreeModalOpen] = useState(false);
+
+  const { flatNodes, connectors } = useMemo(
+    () => buildTreeData(downline ?? [], me),
+    [downline, me]
+  );
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -677,42 +667,24 @@ export default function Network() {
           <h1 className="text-2xl font-bold t-text tracking-tight">Downline Network</h1>
           <p className="t-text-3 text-sm mt-1">Binary organizational tree structure</p>
         </div>
-        <div
-          className="flex gap-1 rounded-lg p-0.5"
-          style={{
-            background: 'var(--color-surface-2)',
-            border: '1px solid var(--color-border)',
-          }}
-        >
-          <button
-            onClick={() => setView('tree')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
-              view === 'tree' ? 't-text' : 't-text-3 hover:t-text'
-            }`}
-            style={view === 'tree' ? { background: 'var(--color-brand-primary)' } : {}}
-          >
-            <TreeIcon size={14} />
-            Tree
+        <div className="flex gap-1 rounded-lg p-0.5"
+          style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
+          <button onClick={() => setView('tree')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${view === 'tree' ? 't-text' : 't-text-3 hover:t-text'}`}
+            style={view === 'tree' ? { background: 'var(--color-brand-primary)' } : {}}>
+            <TreeIcon size={14} />Tree
           </button>
-          <button
-            onClick={() => setView('list')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
-              view === 'list' ? 't-text' : 't-text-3 hover:t-text'
-            }`}
-            style={view === 'list' ? { background: 'var(--color-brand-primary)' } : {}}
-          >
-            <ListIcon size={14} />
-            List
+          <button onClick={() => setView('list')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${view === 'list' ? 't-text' : 't-text-3 hover:t-text'}`}
+            style={view === 'list' ? { background: 'var(--color-brand-primary)' } : {}}>
+            <ListIcon size={14} />List
           </button>
         </div>
       </div>
 
       {/* Stats bar */}
       {!statsLoading && stats && (
-        <div
-          className="card shadow-lg shadow-black/20"
-          style={{ borderColor: 'var(--color-border)' }}
-        >
+        <div className="card shadow-lg shadow-black/20" style={{ borderColor: 'var(--color-border)' }}>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
               { label: 'Level', value: me?.level ?? stats.level },
@@ -720,26 +692,12 @@ export default function Network() {
               { label: 'Direct Referrals', value: stats.direct },
               { label: 'Total Downline', value: stats.downlines },
             ].map((item) => (
-              <div
-                key={item.label}
-                className="text-center py-4 rounded-xl border transition-colors"
-                style={{
-                  background: 'var(--color-surface-2)',
-                  borderColor: 'var(--color-border)',
-                }}
-              >
-                <div
-                  className={`text-xl font-bold ${item.mono ? 'font-mono text-base' : ''}`}
-                  style={{ color: 'var(--color-brand-primary)' }}
-                >
-                  {item.value}
-                </div>
-                <div
-                  className="text-[10px] mt-1.5 uppercase tracking-wider font-bold"
-                  style={{ color: 'var(--color-text-3)' }}
-                >
-                  {item.label}
-                </div>
+              <div key={item.label} className="text-center py-4 rounded-xl border transition-colors"
+                style={{ background: 'var(--color-surface-2)', borderColor: 'var(--color-border)' }}>
+                <div className={`text-xl font-bold ${item.mono ? 'font-mono text-base' : ''}`}
+                  style={{ color: 'var(--color-brand-primary)' }}>{item.value}</div>
+                <div className="text-[10px] mt-1.5 uppercase tracking-wider font-bold"
+                  style={{ color: 'var(--color-text-3)' }}>{item.label}</div>
               </div>
             ))}
           </div>
@@ -747,70 +705,50 @@ export default function Network() {
       )}
 
       {/* Content */}
-      <div
-        className="card p-4"
-        style={{ borderColor: 'var(--color-border)' }}
-      >
+      <div className="card p-4" style={{ borderColor: 'var(--color-border)' }}>
         {downLoading ? (
           <div className="space-y-2">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="skeleton h-12 rounded-xl" />
-            ))}
+            {[...Array(5)].map((_, i) => <div key={i} className="skeleton h-12 rounded-xl" />)}
           </div>
         ) : !downline?.length && view === 'list' ? (
-          <div
-            className="text-center py-16 rounded-2xl border border-dashed"
-            style={{
-              color: 'var(--color-text-4)',
-              background: 'var(--color-surface-2)',
-              borderColor: 'var(--color-border)',
-            }}
-          >
-            <div className="flex justify-center mb-4 opacity-50">
-              <UserIcon size={48} />
-            </div>
-            <p
-              className="text-sm font-medium mb-1"
-              style={{ color: 'var(--color-text-2)' }}
-            >
-              Your downline is empty
-            </p>
-            <p
-              className="text-xs max-w-xs mx-auto"
-              style={{ color: 'var(--color-text-4)' }}
-            >
+          <div className="text-center py-16 rounded-2xl border border-dashed"
+            style={{ color: 'var(--color-text-4)', background: 'var(--color-surface-2)', borderColor: 'var(--color-border)' }}>
+            <div className="flex justify-center mb-4 opacity-50"><UserIcon size={48} /></div>
+            <p className="text-sm font-medium mb-1" style={{ color: 'var(--color-text-2)' }}>Your downline is empty</p>
+            <p className="text-xs max-w-xs mx-auto" style={{ color: 'var(--color-text-4)' }}>
               Share your Left or Right referral link from the Dashboard to start building your downline
             </p>
           </div>
         ) : (
           <>
             <div className="flex items-center justify-between mb-4">
-              <span
-                className="text-sm font-semibold px-4 py-1.5 rounded-full border"
-                style={{
-                  color: 'var(--color-text-2)',
-                  background: 'var(--color-surface-3)',
-                  borderColor: 'var(--color-border)',
-                }}
-              >
-                <span
-                  className="font-black"
-                  style={{ color: 'var(--color-brand-primary)' }}
-                >
-                  {downline?.length ?? 0}
-                </span>{' '}
-                active members
+              <span className="text-sm font-semibold px-4 py-1.5 rounded-full border"
+                style={{ color: 'var(--color-text-2)', background: 'var(--color-surface-3)', borderColor: 'var(--color-border)' }}>
+                <span className="font-black" style={{ color: 'var(--color-brand-primary)' }}>{downline?.length ?? 0}</span>{' '}active members
               </span>
             </div>
 
             {view === 'tree' ? (
-              <TreeVisualization nodes={downline ?? []} me={me} />
+              <StaticTreePreview
+                flatNodes={flatNodes}
+                connectors={connectors}
+                onClick={() => setTreeModalOpen(true)}
+              />
             ) : (
               <DownlineList nodes={downline ?? []} />
             )}
           </>
         )}
       </div>
+
+      {/* Interactive tree modal */}
+      {treeModalOpen && (
+        <TreeModal
+          flatNodes={flatNodes}
+          connectors={connectors}
+          onClose={() => setTreeModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
