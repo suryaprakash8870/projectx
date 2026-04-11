@@ -78,7 +78,7 @@ export default function AppShell() {
   const location = useLocation();
   const { memberId, role, name } = useSelector((s: RootState) => s.auth);
   const { toggleTheme, isDark } = useTheme();
-  const nav = role === 'ADMIN' ? [] : memberNav;
+  const nav = role === 'ADMIN' ? [{ to: '/dashboard', icon: icons.home, label: 'Dashboard' }] : memberNav;
   const mobileNav = role === 'ADMIN' ? [] : mobileBottomNav;
 
   const isOnAdmin   = location.pathname === '/admin';
