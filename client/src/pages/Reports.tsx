@@ -36,16 +36,16 @@ function StatCard({
   label: string; value: string | number; subtext?: string; icon: React.ReactNode; accentColor: string;
 }) {
   return (
-    <div className="card">
-      <div className="flex items-start gap-3 mb-2">
-        <div className="mt-0.5 t-text-3">{icon}</div>
-        <div className="flex-1">
-          <div className="help-text font-semibold">{label}</div>
-          {subtext && <div className="help-text mt-0.5">{subtext}</div>}
-        </div>
+    <div className="card flex flex-col" style={{ height: '130px' }}>
+      <div className="flex items-start gap-2 mb-auto">
+        <div className="t-text-3 shrink-0 mt-0.5">{icon}</div>
+        <div className="help-text font-semibold leading-tight">{label}</div>
       </div>
-      <div className={`font-black font-mono tabular-nums ${accentColor}`} style={{ fontSize: '2rem', lineHeight: 1 }}>
-        {value}
+      <div className="mt-2">
+        <div className={`font-black font-mono tabular-nums ${accentColor}`} style={{ fontSize: '1.625rem', lineHeight: 1 }}>
+          {value}
+        </div>
+        {subtext && <div className="help-text mt-1 truncate">{subtext}</div>}
       </div>
     </div>
   );
