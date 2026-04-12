@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -48,6 +48,16 @@
   /* ── Skeleton ────────────────────────────────────────────────────────── */
   --skeleton-base:     rgba(255, 255, 255, 0.05);
   --skeleton-shimmer:  rgba(255, 255, 255, 0.08);
+
+  /* ── Mark X website tokens (dark) ──────────────────────────────────── */
+  --background:    #000000;
+  --foreground:    #F5F7FA;
+  --muted:         rgba(255, 255, 255, 0.6);
+  --primary:       #0066ff;
+  --accent:        #ff8a00;
+  --glass-bg:      rgba(255, 255, 255, 0.03);
+  --glass-border:  rgba(255, 255, 255, 0.05);
+  --card-shadow:   0 8px 32px 0 rgba(0, 0, 0, 0.8);
 }
 
 :root.light {
@@ -88,6 +98,16 @@
   /* ── Skeleton ────────────────────────────────────────────────────────── */
   --skeleton-base:     rgba(0, 0, 0, 0.06);
   --skeleton-shimmer:  rgba(255, 255, 255, 0.8);
+
+  /* ── Mark X website tokens (light) ─────────────────────────────────── */
+  --background:    #F8FAFC;
+  --foreground:    #0F172A;
+  --muted:         #64748B;
+  --primary:       #0066ff;
+  --accent:        #ff8a00;
+  --glass-bg:      rgba(255, 255, 255, 0.7);
+  --glass-border:  rgba(15, 23, 42, 0.08);
+  --card-shadow:   0 8px 32px 0 rgba(15, 23, 42, 0.05);
 }
 
 @layer base {
@@ -570,3 +590,58 @@
 
 /* ── Dark mode: specific overrides for hardcoded Tailwind dark classes ────── */
 .dark [class*="text-white"] { color: var(--color-text); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Mark X Website Utility Classes
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.glass-card {
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  border-radius: 1rem;
+  background-color: var(--glass-bg);
+  box-shadow: var(--card-shadow);
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.glow-blue {
+  box-shadow: 0 0 60px -10px rgba(0, 102, 255, 0.2);
+}
+.dark .glow-blue {
+  box-shadow: 0 0 60px -10px rgba(0, 102, 255, 0.4);
+}
+
+.glow-orange {
+  box-shadow: 0 0 60px -10px rgba(255, 138, 0, 0.15);
+}
+.dark .glow-orange {
+  box-shadow: 0 0 60px -10px rgba(255, 138, 0, 0.3);
+}
+
+.text-gradient-blue {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-image: linear-gradient(to right, #0066ff, #3b82f6);
+}
+
+.text-gradient-orange {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-image: linear-gradient(to right, #ff8a00, #f97316);
+}
+
+.site-gradient-glow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(0, 102, 255, 0.12) 0%, transparent 75%);
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+.dark .site-gradient-glow {
+  opacity: 1;
+}

@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
+import type { RootState } from '../store/store';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, Legend,
 } from 'recharts';
+import Plan2Referral from './Plan2Referral';
 import {
   useGetAdminStatsQuery,
   useGetAllJoiningsQuery,
@@ -17,13 +20,22 @@ import {
   useGetAllVendorsAdminQuery,
   useApproveVendorMutation,
   useSuspendVendorMutation,
-  useGetCycleReportQuery,
-  useGetRevenueSplitsQuery,
+  useGetAllOrdersQuery,
+  useUpdateOrderStatusMutation,
   useGetProductsQuery,
   useGetCategoriesQuery,
   useCreateProductMutation,
   useUpdateProductMutation,
   useDeleteProductMutation,
+  // Plan 2 admin
+  usePlan2AdminStatsQuery,
+  usePlan2AdminMembersQuery,
+  usePlan2AdminInvestmentRequestsQuery,
+  usePlan2AdminApproveInvestmentMutation,
+  usePlan2AdminRejectInvestmentMutation,
+  usePlan2AdminDistributeReturnsMutation,
+  usePlan2AdminReturnRunsQuery,
+  usePlan2AdminReturnPayoutsQuery,
 } from '../store/apiSlice';
 import {
   ChartBarIcon, DocumentIcon, UsersIcon, BanknotesIcon,
@@ -72,21 +84,6 @@ function TablePagination({ page, totalPages, onPageChange, total, limit = 10 }: 
     </div>
   );
 }
-
-// ── Tab type ─────────────────────────────────────────────────────────────────
-type AdminTab = 'overview' | 'requests' | 'members' | 'payoutlog' | 'revenue' | 'gst' | 'vendors' | 'products' | 'revenuesplits';
-
-const TABS: { id: AdminTab; label: string; icon: JSX.Element }[] = [
-  { id: 'overview',      label: 'Overview',        icon: <ChartBarIcon size={16} /> },
-  { id: 'requests',      label: 'Join Requests',   icon: <DocumentIcon size={16} /> },
-  { id: 'members',       label: 'Members',         icon: <UsersIcon size={16} /> },
-  { id: 'payoutlog',     label: 'Payout Log',      icon: <BanknotesIcon size={16} /> },
-  { id: 'revenue',       label: 'Root Revenue',    icon: <BriefcaseIcon size={16} /> },
-  { id: 'gst',           label: 'GST Report',      icon: <ReceiptIcon size={16} /> },
-  { id: 'vendors',       label: 'Vendors',         icon: <StorefrontIcon size={16} /> },
-  { id: 'products',      label: 'Products',        icon: <ShoppingBagIcon size={16} /> },
-  { id: 'revenuesplits', label: 'Revenue Splits',  icon: <TrendingUpIcon size={16} /> },
-];
 
 // ── KPI Card ─────────────────────────────────────────────────────────────────
 function KPICard({ label, value, sub, icon, fullBg, fullBgText }: {
@@ -888,68 +885,6 @@ function VendorsTab() {
   );
 }
 
-// ── Cycle Report Tab ──────────────────────────────────────────────────────────
-function CycleReportTab() {
-  const { data, isLoading } = useGetCycleReportQuery();
-
-  const chartData = data?.cycles || [];
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <KPICard label="Total Cycles" value={data?.totalCycles || 0} icon={<RefreshIcon size={16} />} color="brand" />
-        <KPICard label="Active Cycle" value={data?.activeCycle || '—'} icon={<BoltIcon size={16} />} color="emerald" />
-        <KPICard label="Total Payouts" value={`₹${(data?.totalPayouts || 0).toLocaleString('en-IN')}`} icon={<BanknotesIcon size={16} />} color="slate" />
-      </div>
-
-      {chartData.length > 0 && (
-        <div className="card">
-          <div className="section-title mb-4">Payouts per Cycle</div>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="cycle" tick={{ fill: 'var(--color-text-4)', fontSize: 11 }} />
-              <YAxis tick={{ fill: 'var(--color-text-4)', fontSize: 11 }} />
-              <Tooltip
-                contentStyle={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 12 }}
-                labelStyle={{ color: 'var(--color-text-3)' }}
-              />
-              <Bar dataKey="totalAmount" fill="#06b6d4" name="Total Payouts" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {chartData.length > 0 && (
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Cycle</th><th>Payouts</th><th>Total Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {chartData.map((c: any) => (
-                <tr key={c.cycle} className="hover:bg-[var(--color-overlay)] transition-colors">
-                  <td><span className="badge bg-purple-500/10 text-purple-600 border border-purple-500/20 font-bold">Cycle {c.cycle}</span></td>
-                  <td className="font-mono t-text-2">{c.totalPayouts}</td>
-                  <td className="font-mono text-emerald-400 font-bold">₹{(c.totalAmount || 0).toLocaleString('en-IN')}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {isLoading && (
-        <div className="grid grid-cols-1 gap-4">
-          {[...Array(3)].map((_, i) => <div key={i} className="skeleton h-12 rounded" />)}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Products Tab ─────────────────────────────────────────────────────────────
 function ProductsTab() {
   const { data: products = [], isLoading, refetch } = useGetProductsQuery();
@@ -1127,106 +1062,477 @@ function ProductsTab() {
   );
 }
 
-// ── Revenue Splits Tab ────────────────────────────────────────────────────────
-function RevenueSplitsTab() {
-  const { data, isLoading } = useGetRevenueSplitsQuery();
+// ── Orders Tab ────────────────────────────────────────────────────────────────
+const ORDER_STATUSES = ['PLACED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
 
-  const totals = data?.totals;
-  const chartData = totals
-    ? [
-        { name: 'Platform Fee', value: totals.platformFee || 0, color: '#0d9488' },
-        { name: 'GST', value: totals.gst || 0, color: '#f59e0b' },
-        { name: 'Company', value: totals.company || 0, color: '#6366f1' },
-        { name: 'Users', value: totals.users || 0, color: '#06b6d4' },
-      ]
-    : [];
+const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
+  PLACED:     { bg: 'rgba(59,130,246,0.12)',  text: '#3b82f6' },
+  PROCESSING: { bg: 'rgba(245,158,11,0.12)',  text: '#f59e0b' },
+  SHIPPED:    { bg: 'rgba(139,92,246,0.12)',  text: '#8b5cf6' },
+  DELIVERED:  { bg: 'rgba(16,185,129,0.12)',  text: '#10b981' },
+  CANCELLED:  { bg: 'rgba(239,68,68,0.12)',   text: '#ef4444' },
+};
 
-  const totalRevenue = totals
-    ? (totals.platformFee || 0) + (totals.gst || 0) + (totals.company || 0) + (totals.users || 0)
-    : 0;
+function OrdersTab() {
+  const { data: orders = [], isLoading, refetch } = useGetAllOrdersQuery();
+  const [updateStatus] = useUpdateOrderStatusMutation();
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [search, setSearch] = useState('');
 
-  const pct = (val: number) => totalRevenue > 0 ? ((val / totalRevenue) * 100).toFixed(1) : '0.0';
+  const filtered = orders.filter((o: any) => {
+    const matchStatus = statusFilter === 'ALL' || o.status === statusFilter;
+    const q = search.toLowerCase();
+    const matchSearch = !q ||
+      o.user?.memberId?.toLowerCase().includes(q) ||
+      o.user?.name?.toLowerCase().includes(q) ||
+      o.product?.name?.toLowerCase().includes(q) ||
+      o.id?.toLowerCase().includes(q);
+    return matchStatus && matchSearch;
+  });
+
+  const counts = ORDER_STATUSES.reduce((acc, s) => {
+    acc[s] = orders.filter((o: any) => o.status === s).length;
+    return acc;
+  }, {} as Record<string, number>);
+
+  async function handleStatusChange(id: string, status: string) {
+    try {
+      await updateStatus({ id, status }).unwrap();
+      toast.success(`Order updated to ${status}`);
+    } catch {
+      toast.error('Failed to update order status');
+    }
+  }
 
   if (isLoading) return (
-    <div className="grid grid-cols-2 gap-4">
-      {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-24 rounded-2xl" />)}
-    </div>
-  );
-
-  if (!totals || totalRevenue === 0) return (
-    <div className="card text-center py-12">
-      <div className="text-4xl mb-3">📊</div>
-      <div className="font-semibold t-text mb-1">No revenue data yet</div>
-      <div className="text-sm t-text-4">Revenue splits are recorded when marketplace orders are placed</div>
+    <div className="space-y-3">
+      {[...Array(5)].map((_, i) => <div key={i} className="skeleton h-16 rounded-2xl" />)}
     </div>
   );
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard label="Platform Fee" value={`₹${(totals?.platformFee || 0).toLocaleString('en-IN')}`} icon={<BoltIcon size={16} />} color="brand" sub={`${pct(totals?.platformFee || 0)}% of total`} />
-        <KPICard label="GST" value={`₹${(totals?.gst || 0).toLocaleString('en-IN')}`} icon={<ReceiptIcon size={16} />} color="amber" sub={`${pct(totals?.gst || 0)}% of total`} />
-        <KPICard label="Company Share" value={`₹${(totals?.company || 0).toLocaleString('en-IN')}`} icon={<BriefcaseIcon size={16} />} color="slate" sub={`${pct(totals?.company || 0)}% of total`} />
-        <KPICard label="User Share" value={`₹${(totals?.users || 0).toLocaleString('en-IN')}`} icon={<UsersIcon size={16} />} color="emerald" sub={`${pct(totals?.users || 0)}% of total`} />
+      {/* Summary KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {ORDER_STATUSES.map(s => (
+          <div key={s}
+            onClick={() => setStatusFilter(f => f === s ? 'ALL' : s)}
+            className="card cursor-pointer transition-all hover:shadow-md"
+            style={{ borderColor: statusFilter === s ? STATUS_STYLE[s].text : undefined, borderWidth: statusFilter === s ? 2 : undefined }}>
+            <div className="text-2xl font-black font-mono" style={{ color: STATUS_STYLE[s].text }}>{counts[s] ?? 0}</div>
+            <div className="text-xs font-semibold t-text-4 mt-1 uppercase tracking-wide">{s}</div>
+          </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {chartData.length > 0 && (
-          <div className="card">
-            <div className="section-title mb-4">Revenue Distribution (Pie Chart)</div>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 12 }}
-                  formatter={(value) => `₹${(value as number).toLocaleString('en-IN')}`}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <input
+          type="text"
+          placeholder="Search by member, product or order ID…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="input flex-1"
+        />
+        <div className="flex gap-2 flex-wrap">
+          {['ALL', ...ORDER_STATUSES].map(s => (
+            <button key={s}
+              onClick={() => setStatusFilter(s)}
+              className="text-xs px-3 py-1.5 rounded-lg font-semibold border transition-all"
+              style={statusFilter === s
+                ? { background: s === 'ALL' ? 'var(--color-primary)' : STATUS_STYLE[s].text, color: '#fff', borderColor: 'transparent' }
+                : { background: 'var(--color-surface-2)', color: 'var(--color-text-3)', borderColor: 'var(--color-border)' }}>
+              {s}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => refetch()} className="btn text-xs px-3 py-1.5 flex items-center gap-1.5">
+          <RefreshIcon size={13} /> Refresh
+        </button>
+      </div>
 
-        <div className="card">
-          <div className="section-title mb-4">Breakdown</div>
-          <div className="space-y-3">
-            {chartData.map((item) => (
-              <div key={item.name}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="t-text-2">{item.name}</span>
-                  <span className="font-mono font-bold t-text-2">₹{item.value.toLocaleString('en-IN')}</span>
-                </div>
-                <div className="w-full rounded-full h-2" style={{ background: 'var(--color-surface-2)' }}>
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${(item.value / totalRevenue) * 100}%`,
-                      backgroundColor: item.color,
-                    }}
-                  />
-                </div>
-              </div>
+      {/* Orders table */}
+      {filtered.length === 0 ? (
+        <div className="card text-center py-12">
+          <div className="text-4xl mb-3">📦</div>
+          <div className="font-semibold t-text mb-1">No orders found</div>
+          <div className="text-sm t-text-4">Try adjusting your filters</div>
+        </div>
+      ) : (
+        <div className="card p-0 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Member</th>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((o: any) => (
+                  <tr key={o.id}>
+                    <td>
+                      <span className="font-mono text-xs t-text-3">{o.id.slice(0, 8)}…</span>
+                    </td>
+                    <td>
+                      <div className="font-semibold t-text text-sm">{o.user?.name || '—'}</div>
+                      <div className="font-mono text-xs t-text-4">{o.user?.memberId}</div>
+                    </td>
+                    <td>
+                      <div className="text-sm t-text-2 max-w-[140px] truncate">{o.product?.name || '—'}</div>
+                      {o.product?.category?.name && (
+                        <div className="text-xs t-text-4">{o.product.category.name}</div>
+                      )}
+                    </td>
+                    <td><span className="font-mono font-bold t-text">{o.quantity}</span></td>
+                    <td><span className="font-mono font-bold t-text">₹{o.totalAmount?.toLocaleString('en-IN')}</span></td>
+                    <td>
+                      <span className="text-xs t-text-3">
+                        {new Date(o.placedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: STATUS_STYLE[o.status]?.bg, color: STATUS_STYLE[o.status]?.text }}>
+                        {o.status}
+                      </span>
+                    </td>
+                    <td>
+                      <select
+                        value={o.status}
+                        onChange={e => handleStatusChange(o.id, e.target.value)}
+                        className="text-xs rounded-lg px-2 py-1 border"
+                        style={{ background: 'var(--color-surface-2)', borderColor: 'var(--color-border)', color: 'var(--color-text-2)' }}
+                      >
+                        {ORDER_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 py-2 text-xs t-text-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
+            Showing {filtered.length} of {orders.length} orders
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── PLAN 2 ADMIN TABS ─────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+function Plan2OverviewTab() {
+  const { data: stats } = usePlan2AdminStatsQuery();
+  return (
+    <div className="space-y-5">
+      <div>
+        <div className="text-xs font-bold uppercase tracking-widest t-text-4 mb-3">Members</div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <KPICard label="Total Members"    value={stats?.totalMembers    || 0} icon={<UsersIcon size={16} />} sub="All Plan 2 users" />
+          <KPICard label="Active Members"   value={stats?.activeMembers   || 0} icon={<CheckCircleIcon size={16} />} sub="Investment approved" />
+          <KPICard label="Pending Members"  value={stats?.pendingMembers  || 0} icon={<ClockIcon size={16} />} sub="Awaiting OTP / approval" />
+          <KPICard label="Pending Requests" value={stats?.pendingRequests || 0} icon={<DocumentIcon size={16} />} sub="Investment requests queue" />
+        </div>
+      </div>
+
+      <div>
+        <div className="text-xs font-bold uppercase tracking-widest t-text-4 mb-3">Investment & Returns</div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <KPICard label="Active Investments" value={stats?.totalInvestments || 0}                                      icon={<BriefcaseIcon size={16} />} />
+          <KPICard label="Total Invested"     value={`₹${(stats?.totalInvestedAmount        || 0).toLocaleString('en-IN')}`} icon={<BanknotesIcon size={16} />} />
+          <KPICard label="Monthly Returns"    value={`₹${(stats?.totalMonthlyReturnsPaid    || 0).toLocaleString('en-IN')}`} icon={<TrendingUpIcon size={16} />} sub="5% × investments" />
+          <KPICard label="Referral Returns"   value={`₹${(stats?.totalReferralReturnsPaid   || 0).toLocaleString('en-IN')}`} icon={<BoltIcon size={16} />} sub="2% × direct referrals" />
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="section-title">Monthly Distribution Runs</div>
+        <div className="text-sm t-text-3 mt-1">{stats?.totalRunsCompleted || 0} monthly distribution runs completed</div>
+      </div>
+    </div>
+  );
+}
+
+function Plan2InvestmentRequestsTab() {
+  const [statusFilter, setStatusFilter] = useState<string>('PENDING');
+  const { data: requests = [] } = usePlan2AdminInvestmentRequestsQuery(statusFilter || undefined);
+  const [approve, { isLoading: approving }] = usePlan2AdminApproveInvestmentMutation();
+  const [reject, { isLoading: rejecting }] = usePlan2AdminRejectInvestmentMutation();
+  const [rejectId, setRejectId] = useState<string | null>(null);
+  const [rejectNote, setRejectNote] = useState('');
+
+  async function handleApprove(id: string) {
+    try { await approve(id).unwrap(); toast.success('Investment approved. Member can now refer.'); }
+    catch (err: any) { toast.error(err?.data?.message || 'Failed'); }
+  }
+  async function handleReject() {
+    if (!rejectId) return;
+    try {
+      await reject({ id: rejectId, note: rejectNote }).unwrap();
+      toast.success('Rejected');
+      setRejectId(null); setRejectNote('');
+    } catch (err: any) { toast.error(err?.data?.message || 'Failed'); }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        {['PENDING', 'APPROVED', 'REJECTED', ''].map(s => (
+          <button
+            key={s || 'all'}
+            onClick={() => setStatusFilter(s)}
+            className="px-3 py-1.5 rounded-full font-semibold text-xs transition-all border"
+            style={{
+              background: statusFilter === s ? '#0066ff' : 'transparent',
+              color: statusFilter === s ? 'white' : 'var(--color-text-3)',
+              borderColor: statusFilter === s ? '#0066ff' : 'var(--color-border)',
+            }}
+          >
+            {s || 'All'}
+          </button>
+        ))}
+      </div>
+
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Member</th><th>Mobile</th><th>Amount</th><th>Referrer</th><th>Status</th><th>Submitted</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {requests.map((r: any) => (
+              <tr key={r.id}>
+                <td>
+                  <div className="font-mono text-brand-400 font-bold">{r.user.memberId}</div>
+                  <div className="text-xs t-text-3">{r.user.name}</div>
+                </td>
+                <td className="font-mono text-xs t-text-3">{r.user.mobile}</td>
+                <td className="font-mono font-bold">₹{r.amount.toLocaleString('en-IN')}</td>
+                <td className="font-mono text-xs">{r.user.referrer?.memberId || '—'}</td>
+                <td>
+                  <span className={`badge badge-${r.status.toLowerCase()}`}>{r.status}</span>
+                </td>
+                <td className="text-xs t-text-4">{new Date(r.createdAt).toLocaleDateString('en-IN')}</td>
+                <td>
+                  {r.status === 'PENDING' && (
+                    <div className="flex gap-1.5">
+                      <button onClick={() => handleApprove(r.id)} disabled={approving}
+                        className="px-2.5 py-1 rounded text-xs font-semibold"
+                        style={{ background: 'rgba(16,185,129,0.1)', color: '#059669', border: '1px solid rgba(16,185,129,0.2)' }}>
+                        Approve
+                      </button>
+                      <button onClick={() => setRejectId(r.id)}
+                        className="px-2.5 py-1 rounded text-xs font-semibold"
+                        style={{ background: 'rgba(239,68,68,0.1)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.2)' }}>
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </td>
+              </tr>
             ))}
-            <div style={{ borderTop: '1px solid var(--color-border)' }} className="pt-3 mt-3">
-              <div className="flex justify-between text-sm font-bold">
-                <span className="t-text-2">Total Revenue</span>
-                <span className="font-mono text-emerald-400">₹{totalRevenue.toLocaleString('en-IN')}</span>
-              </div>
+            {!requests.length && (
+              <tr><td colSpan={7} className="text-center py-8 t-text-4 text-sm">No investment requests</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {rejectId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setRejectId(null)} />
+          <div className="relative card max-w-md w-full">
+            <h3 className="font-bold t-text mb-3">Reject Investment Request</h3>
+            <textarea className="input resize-none" rows={3} placeholder="Rejection reason (optional)"
+              value={rejectNote} onChange={e => setRejectNote(e.target.value)} />
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setRejectId(null)} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={handleReject} disabled={rejecting} className="btn-danger flex-1">Confirm Reject</button>
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function Plan2MembersTab() {
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const { data } = usePlan2AdminMembersQuery({ search: search || undefined, page });
+
+  return (
+    <div className="space-y-4">
+      <input className="input" placeholder="Search by member ID, name, or mobile..."
+        value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr><th>Member</th><th>Mobile</th><th>Referrer</th><th>Invested</th><th>Balance</th><th>Status</th><th>Can Refer</th><th>Joined</th></tr>
+          </thead>
+          <tbody>
+            {data?.members?.map((m: any) => (
+              <tr key={m.id}>
+                <td>
+                  <div className="font-mono text-brand-400 font-bold">{m.memberId}</div>
+                  <div className="text-xs t-text-3">{m.name}</div>
+                </td>
+                <td className="font-mono text-xs">{m.mobile}</td>
+                <td className="font-mono text-xs">{m.referrer?.memberId || <span className="t-text-4">Admin</span>}</td>
+                <td className="font-mono font-bold">₹{m.totalInvested.toLocaleString('en-IN')}</td>
+                <td className="font-mono text-emerald-500">₹{m.incomeBalance.toLocaleString('en-IN')}</td>
+                <td><span className={`badge badge-${m.status.toLowerCase()}`}>{m.status}</span></td>
+                <td>{m.canRefer ? <span className="text-emerald-500 font-bold">Yes</span> : <span className="t-text-4">No</span>}</td>
+                <td className="text-xs t-text-4">{new Date(m.createdAt).toLocaleDateString('en-IN')}</td>
+              </tr>
+            ))}
+            {!data?.members?.length && (
+              <tr><td colSpan={8} className="text-center py-8 t-text-4 text-sm">No Plan 2 members yet</td></tr>
+            )}
+          </tbody>
+        </table>
       </div>
+
+      {data && data.totalPages > 1 && (
+        <TablePagination page={page} totalPages={data.totalPages} onPageChange={setPage} total={data.total} />
+      )}
+    </div>
+  );
+}
+
+function Plan2MonthlyReturnsTab() {
+  const { data: runs = [] } = usePlan2AdminReturnRunsQuery();
+  const [distribute, { isLoading: distributing }] = usePlan2AdminDistributeReturnsMutation();
+  const [monthKey, setMonthKey] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  async function handleDistribute() {
+    try {
+      const result: any = await distribute({ monthKey }).unwrap();
+      toast.success(`${monthKey} distributed: ₹${result.totalMonthly + result.totalReferral} to ${result.investorsPaid + result.referrersPaid} users`);
+    } catch (err: any) {
+      toast.error(err?.data?.message || 'Failed to distribute');
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="card">
+        <div className="section-title mb-4">Distribute Returns</div>
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+          <div className="flex-1 w-full">
+            <label className="input-label">Month (YYYY-MM)</label>
+            <input className="input" type="month" value={monthKey} onChange={e => setMonthKey(e.target.value)} />
+          </div>
+          <button onClick={handleDistribute} disabled={distributing} className="btn-primary">
+            {distributing ? 'Distributing...' : `Distribute ${monthKey}`}
+          </button>
+        </div>
+        <p className="text-xs t-text-4 mt-2">
+          Each active investor gets 5% of their amount. Each direct referrer gets 2% of their referred investors' amount.
+          Runs are idempotent — each month can only be distributed once.
+        </p>
+      </div>
+
+      <div>
+        <div className="section-title mb-3">Distribution History</div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Month</th><th>Monthly</th><th>Referral</th><th>Investors</th><th>Referrers</th><th>Run At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {runs.map((r: any) => (
+                <tr key={r.id}>
+                  <td className="font-mono font-bold">{r.monthKey}</td>
+                  <td className="font-mono text-emerald-500">₹{r.totalMonthlyCredit.toLocaleString('en-IN')}</td>
+                  <td className="font-mono text-brand-400">₹{r.totalReferralCredit.toLocaleString('en-IN')}</td>
+                  <td>{r.totalInvestorsPaid}</td>
+                  <td>{r.totalReferrersPaid}</td>
+                  <td className="text-xs t-text-4">{new Date(r.runAt).toLocaleString('en-IN')}</td>
+                </tr>
+              ))}
+              {!runs.length && (
+                <tr><td colSpan={6} className="text-center py-8 t-text-4 text-sm">No distributions yet</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Plan2ReturnPayoutsTab() {
+  const [kind, setKind] = useState('');
+  const [page, setPage] = useState(1);
+  const { data } = usePlan2AdminReturnPayoutsQuery({ kind: kind || undefined, page });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        {[['', 'All'], ['MONTHLY_RETURN', 'Monthly'], ['REFERRAL_RETURN', 'Referral']].map(([v, l]) => (
+          <button key={v || 'all'} onClick={() => { setKind(v); setPage(1); }}
+            className="px-3 py-1.5 rounded-full font-semibold text-xs transition-all border"
+            style={{
+              background: kind === v ? '#0066ff' : 'transparent',
+              color: kind === v ? 'white' : 'var(--color-text-3)',
+              borderColor: kind === v ? '#0066ff' : 'var(--color-border)',
+            }}>{l}</button>
+        ))}
+      </div>
+
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr><th>Recipient</th><th>Kind</th><th>Amount</th><th>Month</th><th>Date</th></tr>
+          </thead>
+          <tbody>
+            {data?.payouts?.map((p: any) => (
+              <tr key={p.id}>
+                <td>
+                  <div className="font-mono text-brand-400 font-bold">{p.recipient.memberId}</div>
+                  <div className="text-xs t-text-3">{p.recipient.name}</div>
+                </td>
+                <td>
+                  <span className="badge" style={{
+                    background: p.kind === 'MONTHLY_RETURN' ? 'rgba(16,185,129,0.1)' : 'rgba(168,85,247,0.1)',
+                    color: p.kind === 'MONTHLY_RETURN' ? '#059669' : '#9333ea',
+                    border: `1px solid ${p.kind === 'MONTHLY_RETURN' ? 'rgba(16,185,129,0.2)' : 'rgba(168,85,247,0.2)'}`,
+                  }}>
+                    {p.kind === 'MONTHLY_RETURN' ? 'Monthly 5%' : 'Referral 2%'}
+                  </span>
+                </td>
+                <td className="font-mono font-bold text-emerald-500">₹{p.amount.toLocaleString('en-IN')}</td>
+                <td className="font-mono text-xs">{p.monthKey}</td>
+                <td className="text-xs t-text-4">{new Date(p.createdAt).toLocaleDateString('en-IN')}</td>
+              </tr>
+            ))}
+            {!data?.payouts?.length && (
+              <tr><td colSpan={5} className="text-center py-8 t-text-4 text-sm">No return payouts yet</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {data && data.totalPages > 1 && (
+        <TablePagination page={page} totalPages={data.totalPages} onPageChange={setPage} total={data.total} />
+      )}
     </div>
   );
 }
@@ -1234,9 +1540,10 @@ function RevenueSplitsTab() {
 // ── Admin root ────────────────────────────────────────────────────────────────
 export default function Admin() {
   const [searchParams] = useSearchParams();
-  const activeTab = (searchParams.get('tab') as AdminTab) || 'overview';
+  const activeTab = (searchParams.get('tab') as string) || 'overview';
+  const adminPlan = useSelector((s: RootState) => s.adminPlan.selected);
 
-  const TAB_CONTENT: Record<AdminTab, JSX.Element> = {
+  const PLAN1_TAB_CONTENT: Record<string, JSX.Element> = {
     overview:      <OverviewTab />,
     requests:      <RequestsTab />,
     members:       <MembersTab />,
@@ -1245,20 +1552,48 @@ export default function Admin() {
     gst:           <GSTTab />,
     vendors:       <VendorsTab />,
     products:      <ProductsTab />,
-    revenuesplits: <RevenueSplitsTab />,
+    orders:        <OrdersTab />,
   };
 
-  const currentTab = TABS.find(t => t.id === activeTab);
+  const PLAN2_TAB_CONTENT: Record<string, JSX.Element> = {
+    overview:       <Plan2OverviewTab />,
+    requests:       <Plan2InvestmentRequestsTab />,
+    members:        <Plan2MembersTab />,
+    returns:        <Plan2MonthlyReturnsTab />,
+    returnpayouts:  <Plan2ReturnPayoutsTab />,
+    referral:       <Plan2Referral />,
+  };
+
+  const PLAN1_TAB_LABELS: Record<string, string> = {
+    overview: 'Overview', requests: 'Join Requests', members: 'Members',
+    payoutlog: 'Payout Log', revenue: 'Root Revenue', gst: 'GST Report',
+    vendors: 'Vendors', products: 'Products', orders: 'Orders',
+  };
+  const PLAN2_TAB_LABELS: Record<string, string> = {
+    overview: 'Plan 2 Overview', requests: 'Investment Requests', members: 'Plan 2 Members',
+    returns: 'Monthly Returns', returnpayouts: 'Return Payouts', referral: 'Referral',
+  };
+
+  const isPlan2 = adminPlan === 'PLAN2';
+  const content = isPlan2
+    ? (PLAN2_TAB_CONTENT[activeTab] ?? <Plan2OverviewTab />)
+    : (PLAN1_TAB_CONTENT[activeTab] ?? <OverviewTab />);
+  const title = isPlan2
+    ? (PLAN2_TAB_LABELS[activeTab] ?? 'Plan 2 Overview')
+    : (PLAN1_TAB_LABELS[activeTab] ?? 'Admin Panel');
+  const subtitle = isPlan2
+    ? 'Plan 2 — Investment Program management'
+    : 'Manage members, approvals, payouts and reports';
 
   return (
     <div className="space-y-5 animate-fade-in">
       <div>
-        <h1 className="page-heading">{currentTab?.label || 'Admin Panel'}</h1>
-        <p className="help-text mt-1">Manage members, approvals, payouts and reports</p>
+        <h1 className="page-heading">{title}</h1>
+        <p className="help-text mt-1">{subtitle}</p>
       </div>
 
       <div>
-        {TAB_CONTENT[activeTab]}
+        {content}
       </div>
     </div>
   );

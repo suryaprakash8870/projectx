@@ -227,3 +227,130 @@ model RateLimitEntry {
 
   @@unique([key, action])
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── PLAN 2: Investment Program (completely separate from Plan 1) ──────────
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Admin-only managed. Users join via admin's referral link, invest ₹50k or ₹1L,
+// and receive 5% monthly returns. Direct referrals earn 2% monthly on the
+// referred person's invested amount. No upline levels, no LEFT/RIGHT placement.
+//
+// Distinct from Plan 1: separate tables, separate memberId format, separate
+// wallet, separate login routing (detected at /api/auth/login).
+
+model Plan2User {
+  id             String   @id @default(uuid())
+  memberId       String   @unique                  // IND + first letter of name + last 3 of mobile + 4-digit counter
+  sequenceNumber Int      @unique                  // global counter (1, 2, 3, ...)
+  name           String
+  mobile         String   @unique
+  email          String?  @unique
+  passwordHash   String
+  referrerId     String?                           // direct referrer (can be admin or another Plan2User)
+  role           String   @default("MEMBER")       // MEMBER | ADMIN (admin may be linked via referrerId=null)
+  status         String   @default("PENDING")      // PENDING | ACTIVE | SUSPENDED
+  canRefer       Boolean  @default(false)          // true after investment is approved
+  createdAt      DateTime @default(now())
+
+  referrer       Plan2User?               @relation("Plan2Referrals", fields: [referrerId], references: [id])
+  referrals      Plan2User[]              @relation("Plan2Referrals")
+  wallet         Plan2Wallet?
+  investmentRequests Plan2InvestmentRequest[]
+  investments    Plan2Investment[]
+  returnsReceived Plan2ReturnPayout[]     @relation("Plan2ReturnRecipient")
+}
+
+model Plan2Sequence {
+  id           Int @id @default(1)
+  lastSequence Int @default(0)                     // global counter for Plan 2 member IDs
+}
+
+// User submits investment request (₹50,000 or ₹100,000). Admin approves/rejects.
+model Plan2InvestmentRequest {
+  id         String    @id @default(uuid())
+  userId     String
+  amount     Int                                    // 50000 or 100000
+  status     String    @default("PENDING")          // PENDING | APPROVED | REJECTED
+  note       String?
+  approvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user       Plan2User @relation(fields: [userId], references: [id])
+}
+
+// Active investment (created on approval). Supports multiple per user.
+model Plan2Investment {
+  id         String    @id @default(uuid())
+  userId     String
+  requestId  String    @unique                      // link back to the approved request
+  amount     Int                                    // frozen amount at approval
+  startedAt  DateTime  @default(now())
+  active     Boolean   @default(true)               // admin can stop the investment
+  stoppedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user       Plan2User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+// Plan 2 wallet — holds monthly and referral returns (combined in a single balance)
+model Plan2Wallet {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  incomeBalance   Int      @default(0)              // combined monthly + referral returns
+  updatedAt       DateTime @updatedAt
+
+  user            Plan2User @relation(fields: [userId], references: [id])
+  transactions    Plan2WalletTransaction[]
+}
+
+model Plan2WalletTransaction {
+  id          String   @id @default(uuid())
+  walletId    String
+  type        String                                 // CREDIT | DEBIT
+  source      String                                 // MONTHLY_RETURN | REFERRAL_RETURN
+  amount      Int
+  monthKey    String                                 // YYYY-MM (e.g. "2026-04")
+  investmentId String?                               // optional link to the underlying investment
+  note        String?
+  createdAt   DateTime @default(now())
+
+  wallet      Plan2Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([monthKey])
+}
+
+// One row per distribution run (monthKey). Prevents double-crediting for same month.
+model Plan2ReturnRun {
+  id                   String   @id @default(uuid())
+  monthKey             String   @unique              // YYYY-MM
+  totalMonthlyCredit   Int      @default(0)
+  totalReferralCredit  Int      @default(0)
+  totalInvestorsPaid   Int      @default(0)
+  totalReferrersPaid   Int      @default(0)
+  runAt                DateTime @default(now())
+  runBy                String?                       // admin user id (from Plan 1 User table)
+
+  payouts              Plan2ReturnPayout[]
+}
+
+// Individual payout record inside a run (for audit / payout log display)
+model Plan2ReturnPayout {
+  id            String   @id @default(uuid())
+  runId         String
+  recipientId   String                                // Plan2User.id
+  kind          String                                // MONTHLY_RETURN | REFERRAL_RETURN
+  amount        Int
+  sourceInvestmentId String?                          // the investment this return is based on
+  sourceUserId       String?                          // for referral: the referred investor
+  monthKey      String                                // duplicated for easy filtering
+  createdAt     DateTime @default(now())
+
+  run           Plan2ReturnRun @relation(fields: [runId], references: [id])
+  recipient     Plan2User      @relation("Plan2ReturnRecipient", fields: [recipientId], references: [id])
+
+  @@index([recipientId])
+  @@index([monthKey])
+}

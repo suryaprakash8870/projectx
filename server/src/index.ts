@@ -10,6 +10,9 @@ import walletRouter from './routes/wallet';
 import { productsRouter, ordersRouter } from './routes/productsOrders';
 import adminRouter from './routes/admin';
 import vendorRouter from './routes/vendor';
+import plan2AuthRouter from './routes/plan2Auth';
+import plan2UserRouter from './routes/plan2User';
+import adminPlan2Router from './routes/adminPlan2';
 import { errorHandler } from './middleware/errorHandler';
 import { antiFraud } from './middleware/rateLimiter';
 
@@ -29,15 +32,20 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ── Routes ───────────────────────────────────────────────────────────────────
-app.use('/api/auth',     authRouter);
-app.use('/api/users',    usersRouter);
-app.use('/api/network',  networkRouter);
-app.use('/api/joining',  joiningRouter);
-app.use('/api/wallet',   walletRouter);
-app.use('/api/products', productsRouter);
-app.use('/api/orders',   ordersRouter);
-app.use('/api/admin',    adminRouter);
-app.use('/api/vendor',   vendorRouter);
+app.use('/api/auth',         authRouter);
+app.use('/api/users',        usersRouter);
+app.use('/api/network',      networkRouter);
+app.use('/api/joining',      joiningRouter);
+app.use('/api/wallet',       walletRouter);
+app.use('/api/products',     productsRouter);
+app.use('/api/orders',       ordersRouter);
+app.use('/api/admin',        adminRouter);
+app.use('/api/vendor',       vendorRouter);
+
+// Plan 2 — Investment Program (completely separate from Plan 1)
+app.use('/api/plan2/auth',   plan2AuthRouter);
+app.use('/api/plan2',        plan2UserRouter);
+app.use('/api/admin/plan2',  adminPlan2Router);
 
 // ── Error handler (must be last) ─────────────────────────────────────────────
 app.use(errorHandler);

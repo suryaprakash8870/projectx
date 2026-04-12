@@ -3,14 +3,13 @@ import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import type { RootState } from '../store/store';
 import { useGetMeQuery, useUpdateMeMutation, useGetMyOrdersQuery, useChangePasswordMutation } from '../store/apiSlice';
-import { DocumentIcon, ChevronLeftIcon, ChevronRightIcon } from '../components/Icons';
-
-function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text).then(() => toast.success('Copied!'));
-}
+import { DocumentIcon, ChevronLeftIcon, ChevronRightIcon, BoltIcon } from '../components/Icons';
+import { copyToClipboard } from '../utils/clipboard';
 
 export default function Profile() {
-  const { memberId } = useSelector((s: RootState) => s.auth);
+  const { memberId, role, planType } = useSelector((s: RootState) => s.auth);
+  const adminPlan = useSelector((s: RootState) => s.adminPlan.selected);
+  const isPlan2Context = planType === 'PLAN2' || (role === 'ADMIN' && adminPlan === 'PLAN2');
   const { data: user, isLoading, refetch } = useGetMeQuery();
   const { data: orders } = useGetMyOrdersQuery();
   const [update, { isLoading: updating }] = useUpdateMeMutation();
@@ -155,48 +154,79 @@ export default function Profile() {
 
       {/* Referral Links */}
       <div className="card space-y-3">
-        <div className="section-title mb-0">Referral Links</div>
-        <p className="text-xs t-text-4">Share the correct link so new members land exactly where you want them in your binary tree.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* LEFT */}
-          <div className="rounded-2xl p-4" style={{ background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.25)' }}>
-            <div className="flex items-center gap-2 mb-2.5">
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: '#0ea5e9', color: '#fff' }}>
-                <ChevronLeftIcon size={12} />
+        <div className="section-title mb-0">Referral Link{isPlan2Context ? '' : 's'}</div>
+        {isPlan2Context ? (
+          (() => {
+            const plan2Link = `${window.location.origin}/plan2/join?ref=${memberId}&name=${encodeURIComponent(user?.name || '')}`;
+            return (
+              <>
+                <p className="text-xs t-text-4">Share this link to onboard a new Plan 2 investor under your referral.</p>
+                <div className="rounded-2xl p-4" style={{ background: 'rgba(0,102,255,0.08)', border: '1px solid rgba(0,102,255,0.25)' }}>
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: '#0066ff', color: '#fff' }}>
+                      <BoltIcon size={12} />
+                    </div>
+                    <span className="text-xs font-black uppercase tracking-wider" style={{ color: '#0066ff' }}>Plan 2 Referral</span>
+                  </div>
+                  <div className="text-[10px] font-mono truncate mb-3 px-2 py-1.5 rounded-lg" style={{ background: 'var(--color-surface)', color: 'var(--color-text-3)', border: '1px solid rgba(0,102,255,0.2)' }}>
+                    {plan2Link}
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(plan2Link)}
+                    className="w-full text-xs font-bold py-2 rounded-xl transition-colors"
+                    style={{ background: '#0066ff', color: '#ffffff', border: 'none' }}
+                  >
+                    Copy Referral Link
+                  </button>
+                </div>
+              </>
+            );
+          })()
+        ) : (
+          <>
+            <p className="text-xs t-text-4">Share the correct link so new members land exactly where you want them in your binary tree.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* LEFT */}
+              <div className="rounded-2xl p-4" style={{ background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.25)' }}>
+                <div className="flex items-center gap-2 mb-2.5">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: '#0ea5e9', color: '#fff' }}>
+                    <ChevronLeftIcon size={12} />
+                  </div>
+                  <span className="text-xs font-black uppercase tracking-wider" style={{ color: '#0ea5e9' }}>Left</span>
+                </div>
+                <div className="text-[10px] font-mono truncate mb-3 px-2 py-1.5 rounded-lg" style={{ background: 'var(--color-surface)', color: 'var(--color-text-3)', border: '1px solid rgba(14,165,233,0.2)' }}>
+                  {`${window.location.origin}/?ref=${memberId}&leg=LEFT`}
+                </div>
+                <button
+                  onClick={() => copyToClipboard(`${window.location.origin}/?ref=${memberId}&leg=LEFT`)}
+                  className="w-full text-xs font-bold py-2 rounded-xl transition-colors"
+                  style={{ background: '#0ea5e9', color: '#ffffff', border: 'none' }}
+                >
+                  Copy Left Link
+                </button>
               </div>
-              <span className="text-xs font-black uppercase tracking-wider" style={{ color: '#0ea5e9' }}>Left</span>
-            </div>
-            <div className="text-[10px] font-mono truncate mb-3 px-2 py-1.5 rounded-lg" style={{ background: 'var(--color-surface)', color: 'var(--color-text-3)', border: '1px solid rgba(14,165,233,0.2)' }}>
-              {`${window.location.origin}/?ref=${memberId}&leg=LEFT`}
-            </div>
-            <button
-              onClick={() => copyToClipboard(`${window.location.origin}/?ref=${memberId}&leg=LEFT`)}
-              className="w-full text-xs font-bold py-2 rounded-xl transition-colors"
-              style={{ background: '#0ea5e9', color: '#ffffff', border: 'none' }}
-            >
-              Copy Left Link
-            </button>
-          </div>
-          {/* RIGHT */}
-          <div className="rounded-2xl p-4" style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.25)' }}>
-            <div className="flex items-center gap-2 mb-2.5">
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: '#8b5cf6', color: '#fff' }}>
-                <ChevronRightIcon size={12} />
+              {/* RIGHT */}
+              <div className="rounded-2xl p-4" style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.25)' }}>
+                <div className="flex items-center gap-2 mb-2.5">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: '#8b5cf6', color: '#fff' }}>
+                    <ChevronRightIcon size={12} />
+                  </div>
+                  <span className="text-xs font-black uppercase tracking-wider" style={{ color: '#8b5cf6' }}>Right</span>
+                </div>
+                <div className="text-[10px] font-mono truncate mb-3 px-2 py-1.5 rounded-lg" style={{ background: 'var(--color-surface)', color: 'var(--color-text-3)', border: '1px solid rgba(139,92,246,0.2)' }}>
+                  {`${window.location.origin}/?ref=${memberId}&leg=RIGHT`}
+                </div>
+                <button
+                  onClick={() => copyToClipboard(`${window.location.origin}/?ref=${memberId}&leg=RIGHT`)}
+                  className="w-full text-xs font-bold py-2 rounded-xl transition-colors"
+                  style={{ background: '#8b5cf6', color: '#ffffff', border: 'none' }}
+                >
+                  Copy Right Link
+                </button>
               </div>
-              <span className="text-xs font-black uppercase tracking-wider" style={{ color: '#8b5cf6' }}>Right</span>
             </div>
-            <div className="text-[10px] font-mono truncate mb-3 px-2 py-1.5 rounded-lg" style={{ background: 'var(--color-surface)', color: 'var(--color-text-3)', border: '1px solid rgba(139,92,246,0.2)' }}>
-              {`${window.location.origin}/?ref=${memberId}&leg=RIGHT`}
-            </div>
-            <button
-              onClick={() => copyToClipboard(`${window.location.origin}/?ref=${memberId}&leg=RIGHT`)}
-              className="w-full text-xs font-bold py-2 rounded-xl transition-colors"
-              style={{ background: '#8b5cf6', color: '#ffffff', border: 'none' }}
-            >
-              Copy Right Link
-            </button>
-          </div>
-        </div>
+          </>
+        )}
       </div>
 
       {/* Order history */}

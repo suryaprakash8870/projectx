@@ -111,4 +111,27 @@ ordersRouter.get('/all', jwtAuth, requireAdmin, async (_req, res, next) => {
   }
 });
 
+// PATCH /api/orders/:id/status — admin update order status
+ordersRouter.patch('/:id/status', jwtAuth, requireAdmin, async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    const allowed = ['PLACED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+    if (!allowed.includes(status)) {
+      res.status(400).json({ error: 'VALIDATION', message: 'Invalid status.' });
+      return;
+    }
+    const order = await db.order.update({
+      where: { id: req.params.id },
+      data: { status },
+      include: {
+        user: { select: { memberId: true, name: true } },
+        product: { select: { name: true } },
+      },
+    });
+    res.json(order);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export { productsRouter, ordersRouter };

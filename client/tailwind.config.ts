@@ -5,6 +5,14 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Direct aliases for Mark X website components
+        primary:       '#0066ff',
+        accent:        '#ff8a00',
+        'page-bg':     'var(--background)',
+        'page-text':   'var(--foreground)',
+        'muted-text':  'var(--muted)',
+        'glass-border':'var(--glass-border)',
+        'dark-bg':     '#000000',
         // Primary: Electric Blue — #0066ff (mark-x primary)
         brand: {
           50:  '#e6f0ff',
@@ -47,7 +55,8 @@ export default {
       fontFamily: {
         sans:    ['Inter', 'system-ui', 'sans-serif'],
         mono:    ['JetBrains Mono', 'monospace'],
-        display: ['Outfit', 'Inter', 'sans-serif'],
+        display: ['DM Sans', 'Outfit', 'Inter', 'sans-serif'],
+        body:    ['Inter', 'system-ui', 'sans-serif'],
       },
       animation: {
         'fade-in':    'fadeIn 0.4s ease-out forwards',

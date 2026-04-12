@@ -11,14 +11,14 @@ import { rateLimit } from '../middleware/rateLimiter';
 const router = Router();
 const db = new PrismaClient();
 
-function signTokens(userId: string, role: string, memberId: string) {
+function signTokens(userId: string, role: string, memberId: string, planType: 'PLAN1' | 'PLAN2' = 'PLAN1') {
   const accessToken = jwt.sign(
-    { userId, role, memberId },
+    { userId, role, memberId, planType },
     process.env.JWT_SECRET!,
     { expiresIn: '15m' }
   );
   const refreshToken = jwt.sign(
-    { userId, role, memberId },
+    { userId, role, memberId, planType },
     process.env.JWT_REFRESH_SECRET!,
     { expiresIn: '7d' }
   );
@@ -140,33 +140,77 @@ router.post('/verify-otp', async (req, res, next) => {
 });
 
 // POST /api/auth/login
+// Unified login: checks BOTH Plan 1 and Plan 2 tables by mobile (or email).
+// - If credentials valid for exactly one plan → logs the user in as that plan.
+// - If credentials valid for BOTH plans → logs in as Plan 1 (primary) AND returns
+//   a second set of "alt*" tokens for Plan 2. The client stores both and lets the
+//   user swap via a dropdown in the top-left header (no re-auth required).
 router.post('/login', rateLimit('LOGIN'), async (req, res, next) => {
   try {
-    const { mobile, email, password } = req.body;
+    const { mobile, email, password } = req.body as {
+      mobile?: string; email?: string; password?: string;
+    };
     if (!password || (!mobile && !email)) {
       res.status(400).json({ error: 'VALIDATION', message: 'Mobile or email and password are required.' });
       return;
     }
 
-    const user = await db.user.findFirst({
-      where: mobile ? { mobile } : { email },
-    });
+    const where = mobile ? { mobile } : { email: email ?? undefined };
 
-    if (!user || !user.passwordHash) throw new Error('INVALID_CREDENTIALS');
-    if (user.status === 'SUSPENDED') throw new Error('USER_NOT_ACTIVE');
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) throw new Error('INVALID_CREDENTIALS');
+    // Look up in both tables
+    const plan1User = await db.user.findFirst({ where });
+    const plan2User = await db.plan2User.findFirst({ where });
 
-    const tokens = signTokens(user.id, user.role, user.memberId);
+    // Validate passwords against each (independently)
+    const p1Valid = !!(plan1User && plan1User.passwordHash &&
+      (await bcrypt.compare(password, plan1User.passwordHash)));
+    const p2Valid = !!(plan2User && plan2User.passwordHash &&
+      (await bcrypt.compare(password, plan2User.passwordHash)));
 
-    res.json({
-      ...tokens,
-      userId: user.id,
-      memberId: user.memberId,
-      role: user.role,
-      name: user.name,
-      status: user.status,
-    });
+    if (!p1Valid && !p2Valid) throw new Error('INVALID_CREDENTIALS');
+
+    // Guard against suspended accounts only for the matched plan(s)
+    if (p1Valid && plan1User!.status === 'SUSPENDED') throw new Error('USER_NOT_ACTIVE');
+    if (p2Valid && plan2User!.status === 'SUSPENDED') throw new Error('USER_NOT_ACTIVE');
+
+    // Helper to issue tokens for a given user + planType
+    const issueFor = (user: any, type: 'PLAN1' | 'PLAN2') => {
+      const tokens = signTokens(user.id, user.role, user.memberId, type);
+      return {
+        ...tokens,
+        userId: user.id,
+        memberId: user.memberId,
+        role: user.role,
+        name: user.name,
+        status: user.status,
+        planType: type,
+      };
+    };
+
+    // Both plans valid → primary=PLAN1, alt=PLAN2 in same response
+    if (p1Valid && p2Valid) {
+      const primary = issueFor(plan1User, 'PLAN1');
+      const altTokens = signTokens(plan2User!.id, plan2User!.role, plan2User!.memberId, 'PLAN2');
+      res.json({
+        ...primary,
+        altAccessToken: altTokens.accessToken,
+        altRefreshToken: altTokens.refreshToken,
+        altUserId: plan2User!.id,
+        altMemberId: plan2User!.memberId,
+        altRole: plan2User!.role,
+        altName: plan2User!.name,
+        altStatus: plan2User!.status,
+        altPlanType: 'PLAN2',
+      });
+      return;
+    }
+
+    // Single-plan match
+    if (p1Valid) {
+      res.json(issueFor(plan1User, 'PLAN1'));
+      return;
+    }
+    res.json(issueFor(plan2User, 'PLAN2'));
   } catch (err) {
     next(err);
   }
@@ -185,9 +229,10 @@ router.post('/refresh', async (req, res, next) => {
       userId: string;
       role: string;
       memberId: string;
+      planType?: 'PLAN1' | 'PLAN2';
     };
 
-    const tokens = signTokens(payload.userId, payload.role, payload.memberId);
+    const tokens = signTokens(payload.userId, payload.role, payload.memberId, payload.planType ?? 'PLAN1');
     res.json(tokens);
   } catch {
     res.status(401).json({ error: 'UNAUTHORIZED', message: 'Invalid refresh token.' });

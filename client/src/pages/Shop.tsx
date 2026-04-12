@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useGetProductsQuery, useGetCategoriesQuery, useGetWalletQuery, usePlaceOrderMutation } from '../store/apiSlice';
-import { MagnifyingGlassIcon, LeafIcon, CurrencyIcon, ShoppingCartIcon, XCircleIcon } from '../components/Icons';
+import { MagnifyingGlassIcon, CurrencyIcon, ShoppingCartIcon, XCircleIcon } from '../components/Icons';
 
 interface CartItem { productId: string; name: string; price: number; qty: number; couponSplitPct: number }
 
@@ -148,9 +148,6 @@ export default function Shop() {
       ) : filteredProducts && filteredProducts.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredProducts.map((p: any) => {
-            const coupon = Math.floor(p.price * p.couponSplitPct / 100);
-            const cash   = p.price - coupon;
-            const cashback = calculateCashback(p.price);
             const inCart = cart.find(i => i.productId === p.id);
             return (
               <div key={p.id} className="rounded-2xl overflow-hidden flex flex-col group transition-all duration-300 hover:shadow-xl hover:-translate-y-0.5" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>

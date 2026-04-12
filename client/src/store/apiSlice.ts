@@ -50,7 +50,7 @@ const baseQueryWithRefresh: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQu
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: baseQueryWithRefresh,
-  tagTypes: ['User', 'Wallet', 'Network', 'Joining', 'Products', 'Orders', 'Admin', 'Vendor', 'Categories'],
+  tagTypes: ['User', 'Wallet', 'Network', 'Joining', 'Products', 'Orders', 'Admin', 'Vendor', 'Categories', 'Plan2', 'Plan2Admin'],
   endpoints: (build) => ({
     // ── Auth ──────────────────────────────────────────────────────────────
     register: build.mutation({
@@ -166,6 +166,14 @@ export const api = createApi({
       query: () => '/orders/my',
       providesTags: ['Orders'],
     }),
+    getAllOrders: build.query<any[], void>({
+      query: () => '/orders/all',
+      providesTags: ['Orders'],
+    }),
+    updateOrderStatus: build.mutation({
+      query: ({ id, status }) => ({ url: `/orders/${id}/status`, method: 'PATCH', body: { status } }),
+      invalidatesTags: ['Orders'],
+    }),
 
     // ── Categories ────────────────────────────────────────────────────────
     getCategories: build.query<any[], void>({
@@ -260,6 +268,88 @@ export const api = createApi({
       query: () => '/admin/cycle-report',
       providesTags: ['Admin'],
     }),
+
+    // ── Plan 2 (Investment Program) ──────────────────────────────────────
+    plan2CheckReferral: build.query<any, string>({
+      query: (code) => `/plan2/auth/referral-check/${code}`,
+    }),
+    plan2Register: build.mutation({
+      query: (body) => ({ url: '/plan2/auth/register', method: 'POST', body }),
+    }),
+    plan2VerifyOtp: build.mutation({
+      query: (body) => ({ url: '/plan2/auth/verify-otp', method: 'POST', body }),
+    }),
+    plan2GetMe: build.query<any, void>({
+      query: () => '/plan2/me',
+      providesTags: ['Plan2'],
+    }),
+    plan2GetWallet: build.query<any, void>({
+      query: () => '/plan2/wallet',
+      providesTags: ['Plan2'],
+    }),
+    plan2GetWalletTransactions: build.query<any[], void>({
+      query: () => '/plan2/wallet/transactions',
+      providesTags: ['Plan2'],
+    }),
+    plan2GetMyInvestment: build.query<any, void>({
+      query: () => '/plan2/investment/my',
+      providesTags: ['Plan2'],
+    }),
+    plan2SubmitInvestmentRequest: build.mutation({
+      query: (body) => ({ url: '/plan2/investment/request', method: 'POST', body }),
+      invalidatesTags: ['Plan2'],
+    }),
+    plan2GetNetworkStats: build.query<any, void>({
+      query: () => '/plan2/network/stats',
+      providesTags: ['Plan2'],
+    }),
+    plan2GetDownline: build.query<any[], void>({
+      query: () => '/plan2/network/downline',
+      providesTags: ['Plan2'],
+    }),
+
+    // ── Plan 2 Admin ─────────────────────────────────────────────────────
+    plan2AdminStats: build.query<any, void>({
+      query: () => '/admin/plan2/stats',
+      providesTags: ['Plan2Admin'],
+    }),
+    plan2AdminMembers: build.query<any, { search?: string; page?: number }>({
+      query: ({ search, page = 1 } = {}) => {
+        const params = new URLSearchParams({ page: String(page) });
+        if (search) params.set('search', search);
+        return `/admin/plan2/members?${params}`;
+      },
+      providesTags: ['Plan2Admin'],
+    }),
+    plan2AdminInvestmentRequests: build.query<any[], string | undefined>({
+      query: (status) => `/admin/plan2/investment-requests${status ? `?status=${status}` : ''}`,
+      providesTags: ['Plan2Admin'],
+    }),
+    plan2AdminApproveInvestment: build.mutation({
+      query: (id) => ({ url: `/admin/plan2/investment-requests/${id}/approve`, method: 'POST' }),
+      invalidatesTags: ['Plan2Admin'],
+    }),
+    plan2AdminRejectInvestment: build.mutation({
+      query: ({ id, note }) => ({ url: `/admin/plan2/investment-requests/${id}/reject`, method: 'POST', body: { note } }),
+      invalidatesTags: ['Plan2Admin'],
+    }),
+    plan2AdminDistributeReturns: build.mutation({
+      query: (body) => ({ url: '/admin/plan2/distribute-returns', method: 'POST', body }),
+      invalidatesTags: ['Plan2Admin'],
+    }),
+    plan2AdminReturnRuns: build.query<any[], void>({
+      query: () => '/admin/plan2/return-runs',
+      providesTags: ['Plan2Admin'],
+    }),
+    plan2AdminReturnPayouts: build.query<any, { monthKey?: string; kind?: string; page?: number }>({
+      query: ({ monthKey, kind, page = 1 } = {}) => {
+        const params = new URLSearchParams({ page: String(page) });
+        if (monthKey) params.set('monthKey', monthKey);
+        if (kind) params.set('kind', kind);
+        return `/admin/plan2/return-payouts?${params}`;
+      },
+      providesTags: ['Plan2Admin'],
+    }),
   }),
 });
 
@@ -291,6 +381,8 @@ export const {
   useDeleteProductMutation,
   usePlaceOrderMutation,
   useGetMyOrdersQuery,
+  useGetAllOrdersQuery,
+  useUpdateOrderStatusMutation,
   useGetCategoriesQuery,
   useCreateCategoryMutation,
   useRegisterVendorMutation,
@@ -307,4 +399,24 @@ export const {
   useGetGstReportQuery,
   useGetRevenueSplitsQuery,
   useGetCycleReportQuery,
+  // Plan 2
+  usePlan2CheckReferralQuery,
+  usePlan2RegisterMutation,
+  usePlan2VerifyOtpMutation,
+  usePlan2GetMeQuery,
+  usePlan2GetWalletQuery,
+  usePlan2GetWalletTransactionsQuery,
+  usePlan2GetMyInvestmentQuery,
+  usePlan2SubmitInvestmentRequestMutation,
+  usePlan2GetNetworkStatsQuery,
+  usePlan2GetDownlineQuery,
+  // Plan 2 Admin
+  usePlan2AdminStatsQuery,
+  usePlan2AdminMembersQuery,
+  usePlan2AdminInvestmentRequestsQuery,
+  usePlan2AdminApproveInvestmentMutation,
+  usePlan2AdminRejectInvestmentMutation,
+  usePlan2AdminDistributeReturnsMutation,
+  usePlan2AdminReturnRunsQuery,
+  usePlan2AdminReturnPayoutsQuery,
 } = api;

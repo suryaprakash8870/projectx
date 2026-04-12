@@ -190,7 +190,7 @@ const slides = [
 ];
 
 // ── Left carousel panel ────────────────────────────────────────────────────────
-function FeatureCarousel() {
+export function FeatureCarousel() {
   const [active, setActive] = useState(0);
   const [animating, setAnimating] = useState(false);
 
@@ -301,10 +301,32 @@ export default function Landing() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const res = await login(loginForm).unwrap();
-      dispatch(setCredentials({ accessToken: res.accessToken, refreshToken: res.refreshToken, userId: res.userId, memberId: res.memberId, role: res.role, name: res.name, status: res.status }));
+      const res: any = await login(loginForm).unwrap();
+      // Backend returns primary credentials always. If the mobile has accounts in
+      // both plans, it also returns alt* fields for the OTHER plan so the user
+      // can switch via the top-left dropdown later (no re-auth needed).
+      dispatch(setCredentials({
+        accessToken: res.accessToken,
+        refreshToken: res.refreshToken,
+        userId: res.userId,
+        memberId: res.memberId,
+        role: res.role,
+        name: res.name,
+        status: res.status,
+        planType: res.planType ?? 'PLAN1',
+        altAccessToken: res.altAccessToken ?? null,
+        altRefreshToken: res.altRefreshToken ?? null,
+        altUserId: res.altUserId ?? null,
+        altMemberId: res.altMemberId ?? null,
+        altRole: res.altRole ?? null,
+        altName: res.altName ?? null,
+        altStatus: res.altStatus ?? null,
+        altPlanType: res.altPlanType ?? null,
+      }));
       toast.success('Welcome back!');
-      navigate(res.role === 'ADMIN' ? '/admin' : '/dashboard');
+      if (res.role === 'ADMIN') navigate('/admin');
+      else if (res.planType === 'PLAN2') navigate('/plan2/dashboard');
+      else navigate('/dashboard');
     } catch (err: any) { toast.error(err?.data?.message || 'Login failed'); }
   }
 
@@ -324,7 +346,7 @@ export default function Landing() {
     e.preventDefault();
     try {
       const res = await verifyOtp({ userId: regUserId, otp }).unwrap();
-      dispatch(setCredentials({ accessToken: res.accessToken, refreshToken: res.refreshToken, userId: res.userId, memberId: res.memberId, role: res.role, name: res.name, status: res.status ?? 'PENDING' }));
+      dispatch(setCredentials({ accessToken: res.accessToken, refreshToken: res.refreshToken, userId: res.userId, memberId: res.memberId, role: res.role, name: res.name, status: res.status ?? 'PENDING', planType: 'PLAN1' }));
       toast.success('Welcome to Plan-I!');
       setRegStep('success');
     } catch (err: any) { toast.error(err?.data?.message || 'Invalid OTP'); }
@@ -363,7 +385,7 @@ export default function Landing() {
                 <div className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse-soft" />
                 <span className="font-bold uppercase tracking-widest text-brand-600" style={{ fontSize: '0.6875rem' }}>Welcome Back</span>
               </div>
-              <h1 className="font-black mb-2" style={{ fontSize: '1.75rem', color: '#0f172a' }}>Login to Plan-I</h1>
+              <h1 className="font-black mb-2" style={{ fontSize: '1.75rem', color: '#0f172a' }}>Welcome Back</h1>
               <p style={{ color: 'rgba(15,23,42,0.45)', fontSize: '0.9375rem' }}>Enter your credentials to access your dashboard</p>
             </div>
           )}

@@ -5,6 +5,7 @@ interface JwtPayload {
   userId: string;
   role: string;
   memberId: string;
+  planType?: 'PLAN1' | 'PLAN2';    // defaults to PLAN1 for backwards compatibility
 }
 
 declare global {
