@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { db } from '../db';
 import { jwtAuth } from '../middleware/jwtAuth';
 
 const router = Router();
-const db = new PrismaClient();
 
 // All routes require JWT with planType === 'PLAN2'
 function requirePlan2User(req: any, res: any, next: any) {

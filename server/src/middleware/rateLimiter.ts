@@ -1,7 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
-
-const db = new PrismaClient();
+import { db } from '../db';
 
 interface RateLimitConfig {
   windowMs: number;    // time window in ms

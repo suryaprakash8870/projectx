@@ -1,12 +1,11 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { PrismaClient } from '@prisma/client';
+import { db } from '../db';
 import { generateNextPlan2MemberId } from '../services/plan2IdService';
 import { generateAndSendOTP, verifyOTP } from '../services/otpService';
 import { rateLimit } from '../middleware/rateLimiter';
 
 const router = Router();
-const db = new PrismaClient();
 
 // GET /api/plan2/auth/referral-check/:code
 // Checks if a Plan 2 referral memberId exists and is allowed to refer.

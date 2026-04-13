@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
+import { db } from '../db';
 import { generateNextMemberId } from '../services/memberIdService';
 import { addToNetwork } from '../services/networkService';
 import { generateAndSendOTP, verifyOTP } from '../services/otpService';
@@ -9,7 +9,6 @@ import { jwtAuth } from '../middleware/jwtAuth';
 import { rateLimit } from '../middleware/rateLimiter';
 
 const router = Router();
-const db = new PrismaClient();
 
 function signTokens(userId: string, role: string, memberId: string, planType: 'PLAN1' | 'PLAN2' = 'PLAN1') {
   const accessToken = jwt.sign(

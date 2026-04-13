@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { db } from '../db';
 import { jwtAuth } from '../middleware/jwtAuth';
 import { getWalletWithTransactions, transferPurchaseToIncome } from '../services/walletService';
 
 const router = Router();
-const db = new PrismaClient();
 
 // GET /api/wallet — all 4 wallet balances
 router.get('/', jwtAuth, async (req, res, next) => {

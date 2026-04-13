@@ -18,6 +18,7 @@ import Plan2Join from './pages/Plan2Join';
 import Plan2Dashboard from './pages/Plan2Dashboard';
 import Plan2AdminDashboard from './pages/Plan2AdminDashboard';
 import Plan2Referral from './pages/Plan2Referral';
+import ProductDetail from './pages/ProductDetail';
 import WebsiteLayout from './pages/website/WebsiteLayout';
 import { HomePage, HowItWorksPage, FeaturesPage, ShopsPage, FAQPage } from './pages/website/WebsitePages';
 
@@ -80,6 +81,7 @@ export default function App() {
         <Route path="/network"      element={<Network />} />
         <Route path="/join-request" element={<JoinRequest />} />
         <Route path="/shop"         element={<Shop />} />
+        <Route path="/shop/:id"     element={<ProductDetail />} />
         <Route path="/wallet"       element={<Wallet />} />
         <Route path="/vendor"       element={<Vendor />} />
         <Route path="/reports"      element={<Reports />} />

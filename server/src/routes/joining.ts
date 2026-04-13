@@ -1,11 +1,10 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { db } from '../db';
 import { jwtAuth } from '../middleware/jwtAuth';
 import { requireAdmin } from '../middleware/requireAdmin';
 import { processJoiningPayout } from '../services/payoutEngine';
 
 const router = Router();
-const db = new PrismaClient();
 
 // POST /api/joining/request — member submits joining request
 router.post('/request', jwtAuth, async (req, res, next) => {

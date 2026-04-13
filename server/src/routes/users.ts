@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { db } from '../db';
 import { jwtAuth } from '../middleware/jwtAuth';
 
 const router = Router();
-const db = new PrismaClient();
 
 // GET /api/users/me
 router.get('/me', jwtAuth, async (req, res, next) => {

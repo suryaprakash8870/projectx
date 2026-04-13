@@ -144,6 +144,10 @@ export const api = createApi({
       query: () => '/products',
       providesTags: ['Products'],
     }),
+    getProductDetail: build.query<any, string>({
+      query: (id) => `/products/${id}`,
+      providesTags: ['Products'],
+    }),
     createProduct: build.mutation({
       query: (body) => ({ url: '/products', method: 'POST', body }),
       invalidatesTags: ['Products'],
@@ -376,6 +380,7 @@ export const {
   useGetTransactionsQuery,
   useTransferPurchaseToIncomeMutation,
   useGetProductsQuery,
+  useGetProductDetailQuery,
   useCreateProductMutation,
   useUpdateProductMutation,
   useDeleteProductMutation,

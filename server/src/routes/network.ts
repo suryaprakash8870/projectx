@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { db } from '../db';
 import { jwtAuth } from '../middleware/jwtAuth';
 import {
   getUplineChain,
@@ -9,7 +9,6 @@ import {
 import { getCycleReceivers } from '../services/payoutEngine';
 
 const router = Router();
-const db = new PrismaClient();
 
 // GET /api/network/upline
 router.get('/upline', jwtAuth, async (req, res, next) => {

@@ -1,12 +1,11 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { db } from '../db';
 import { jwtAuth } from '../middleware/jwtAuth';
 import { requireAdmin } from '../middleware/requireAdmin';
 import { purchaseProduct } from '../services/walletService';
 
 const productsRouter = Router();
 const ordersRouter = Router();
-const db = new PrismaClient();
 
 // ── Products ────────────────────────────────────────────────────────────────
 
@@ -23,6 +22,19 @@ productsRouter.get('/', jwtAuth, async (req, res, next) => {
       orderBy: { name: 'asc' },
     });
     res.json(products);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/products/:id — single product detail
+productsRouter.get('/:id', jwtAuth, async (req, res, next) => {
+  try {
+    const product = await db.product.findUniqueOrThrow({
+      where: { id: req.params.id },
+      include: { category: { select: { id: true, name: true } } },
+    });
+    res.json(product);
   } catch (err) {
     next(err);
   }

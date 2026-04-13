@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { db } from '../db';
 import { jwtAuth } from '../middleware/jwtAuth';
 import { requireAdmin } from '../middleware/requireAdmin';
 
 const router = Router();
-const db = new PrismaClient();
 
 // ── Categories ──────────────────────────────────────────────────────────────
 
