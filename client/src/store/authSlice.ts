@@ -8,7 +8,7 @@ interface AuthState {
   role: 'MEMBER' | 'ADMIN' | null;
   name: string | null;
   status: string | null;
-  planType: 'PLAN1' | 'PLAN2' | null;
+  planType: 'PLAN1' | 'PLAN2' | 'PLAN3' | null;
   // Alt plan credentials — populated only when the user has BOTH Plan 1 and Plan 2.
   // On "switch plan", primary ↔ alt are swapped atomically.
   altAccessToken: string | null;
@@ -18,7 +18,7 @@ interface AuthState {
   altRole: 'MEMBER' | 'ADMIN' | null;
   altName: string | null;
   altStatus: string | null;
-  altPlanType: 'PLAN1' | 'PLAN2' | null;
+  altPlanType: 'PLAN1' | 'PLAN2' | 'PLAN3' | null;
 }
 
 const stored = (() => {

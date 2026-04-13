@@ -27,7 +27,7 @@ import {
   useCreateProductMutation,
   useUpdateProductMutation,
   useDeleteProductMutation,
-  // Plan 2 admin
+  // Plan 3 (investment) admin
   usePlan2AdminStatsQuery,
   usePlan2AdminMembersQuery,
   usePlan2AdminInvestmentRequestsQuery,
@@ -36,6 +36,11 @@ import {
   usePlan2AdminDistributeReturnsMutation,
   usePlan2AdminReturnRunsQuery,
   usePlan2AdminReturnPayoutsQuery,
+  // Plan 1 (subscription) admin
+  useGetPlan1AdminSubscriptionsQuery,
+  useGetPlan1AdminStatsQuery,
+  useApprovePlan1SubscriptionMutation,
+  useRejectPlan1SubscriptionMutation,
 } from '../store/apiSlice';
 import {
   ChartBarIcon, DocumentIcon, UsersIcon, BanknotesIcon,
@@ -1247,7 +1252,7 @@ function Plan2OverviewTab() {
       <div>
         <div className="text-xs font-bold uppercase tracking-widest t-text-4 mb-3">Members</div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <KPICard label="Total Members"    value={stats?.totalMembers    || 0} icon={<UsersIcon size={16} />} sub="All Plan 2 users" />
+          <KPICard label="Total Members"    value={stats?.totalMembers    || 0} icon={<UsersIcon size={16} />} sub="All Plan 3 users" />
           <KPICard label="Active Members"   value={stats?.activeMembers   || 0} icon={<CheckCircleIcon size={16} />} sub="Investment approved" />
           <KPICard label="Pending Members"  value={stats?.pendingMembers  || 0} icon={<ClockIcon size={16} />} sub="Awaiting OTP / approval" />
           <KPICard label="Pending Requests" value={stats?.pendingRequests || 0} icon={<DocumentIcon size={16} />} sub="Investment requests queue" />
@@ -1408,7 +1413,7 @@ function Plan2MembersTab() {
               </tr>
             ))}
             {!data?.members?.length && (
-              <tr><td colSpan={8} className="text-center py-8 t-text-4 text-sm">No Plan 2 members yet</td></tr>
+              <tr><td colSpan={8} className="text-center py-8 t-text-4 text-sm">No Plan 3 members yet</td></tr>
             )}
           </tbody>
         </table>
@@ -1547,13 +1552,154 @@ function Plan2ReturnPayoutsTab() {
   );
 }
 
+// ── Plan 1 Subscriptions Tab ─────────────────────────────────────────────────
+function SubscriptionsTab() {
+  const [statusFilter, setStatusFilter] = useState<string>('PENDING');
+  const { data: subs = [], isLoading, refetch } = useGetPlan1AdminSubscriptionsQuery({ status: statusFilter });
+  const { data: stats } = useGetPlan1AdminStatsQuery();
+  const [approve, { isLoading: approving }] = useApprovePlan1SubscriptionMutation();
+  const [reject,  { isLoading: rejecting }]  = useRejectPlan1SubscriptionMutation();
+
+  async function handleApprove(id: string) {
+    try {
+      await approve(id).unwrap();
+      toast.success('Subscription approved — 500 GTC credited');
+      refetch();
+    } catch (e: any) { toast.error(e?.data?.message || 'Failed'); }
+  }
+
+  async function handleReject(id: string) {
+    try {
+      await reject({ id }).unwrap();
+      toast.success('Subscription rejected');
+      refetch();
+    } catch (e: any) { toast.error(e?.data?.message || 'Failed'); }
+  }
+
+  const statusCfg: Record<string, { color: string; label: string }> = {
+    PENDING:  { color: '#f59e0b', label: 'Pending' },
+    ACTIVE:   { color: '#10b981', label: 'Active'  },
+    EXPIRED:  { color: '#ef4444', label: 'Expired' },
+    REJECTED: { color: '#ef4444', label: 'Rejected' },
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <KPICard label="Total"    value={stats?.total    || 0} icon={<UsersIcon size={16} />}       fullBg="#0066ff" fullBgText />
+        <KPICard label="Active"   value={stats?.active   || 0} icon={<CheckCircleIcon size={16} />} fullBg="#10b981" fullBgText />
+        <KPICard label="Pending"  value={stats?.pending  || 0} icon={<ClockIcon size={16} />}       fullBg="#f59e0b" fullBgText />
+        <KPICard label="Expired"  value={stats?.expired  || 0} icon={<XCircleIcon size={16} />}     fullBg="#ef4444" fullBgText />
+      </div>
+
+      {/* Filter */}
+      <div className="card">
+        <div className="flex items-center gap-2 flex-wrap mb-4">
+          {['ALL', 'PENDING', 'ACTIVE', 'EXPIRED', 'REJECTED'].map(s => (
+            <button key={s} onClick={() => setStatusFilter(s === 'ALL' ? '' : s)}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+              style={{
+                background: statusFilter === (s === 'ALL' ? '' : s) ? '#0066ff' : 'var(--color-overlay)',
+                color: statusFilter === (s === 'ALL' ? '' : s) ? '#fff' : 'var(--color-text-3)',
+              }}>
+              {s}
+            </button>
+          ))}
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-2">{[...Array(4)].map((_, i) => <div key={i} className="skeleton h-16 rounded-xl" />)}</div>
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Submitted</th>
+                  <th>Status</th>
+                  <th>Approved At</th>
+                  <th>Expires At</th>
+                  <th>GTC</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subs.map((sub: any) => {
+                  const cfg = statusCfg[sub.status] || { color: '#888', label: sub.status };
+                  return (
+                    <tr key={sub.id}>
+                      <td>
+                        <div className="font-mono font-bold text-xs">{sub.user?.memberId}</div>
+                        <div className="text-xs t-text-4">{sub.user?.name}</div>
+                      </td>
+                      <td className="text-xs t-text-3">{new Date(sub.createdAt).toLocaleDateString('en-IN')}</td>
+                      <td>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold"
+                          style={{ background: `${cfg.color}22`, color: cfg.color }}>
+                          {cfg.label}
+                        </span>
+                      </td>
+                      <td className="text-xs t-text-3">{sub.approvedAt ? new Date(sub.approvedAt).toLocaleDateString('en-IN') : '—'}</td>
+                      <td className="text-xs t-text-3">{sub.expiresAt ? new Date(sub.expiresAt).toLocaleDateString('en-IN') : '—'}</td>
+                      <td>
+                        <span className={`text-xs font-bold ${sub.gtcCredited ? 'text-emerald-500' : 't-text-4'}`}>
+                          {sub.gtcCredited ? '500 credited' : '—'}
+                        </span>
+                      </td>
+                      <td>
+                        {sub.status === 'PENDING' && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleApprove(sub.id)}
+                              disabled={approving}
+                              className="px-2.5 py-1 rounded-lg text-xs font-bold text-white"
+                              style={{ background: '#10b981', opacity: approving ? 0.7 : 1 }}>
+                              {approving ? '…' : 'Approve'}
+                            </button>
+                            <button
+                              onClick={() => handleReject(sub.id)}
+                              disabled={rejecting}
+                              className="px-2.5 py-1 rounded-lg text-xs font-bold text-white"
+                              style={{ background: '#ef4444', opacity: rejecting ? 0.7 : 1 }}>
+                              {rejecting ? '…' : 'Reject'}
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {!subs.length && (
+                  <tr><td colSpan={7} className="text-center py-8 t-text-4 text-sm">No subscriptions found</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Admin root ────────────────────────────────────────────────────────────────
 export default function Admin() {
   const [searchParams] = useSearchParams();
   const activeTab = (searchParams.get('tab') as string) || 'overview';
   const adminPlan = useSelector((s: RootState) => s.adminPlan.selected);
 
-  const PLAN1_TAB_CONTENT: Record<string, JSX.Element> = {
+  // Plan 1 (subscription) admin tabs
+  const SUB_TAB_CONTENT: Record<string, JSX.Element> = {
+    subscriptions:  <SubscriptionsTab />,
+    overview:       <OverviewTab />,
+    members:        <MembersTab />,
+    vendors:        <VendorsTab />,
+    products:       <ProductsTab />,
+    orders:         <OrdersTab />,
+  };
+
+  // Plan 2 (referral) admin tabs
+  const PLAN2_TAB_CONTENT: Record<string, JSX.Element> = {
     overview:      <OverviewTab />,
     requests:      <RequestsTab />,
     members:       <MembersTab />,
@@ -1565,7 +1711,8 @@ export default function Admin() {
     orders:        <OrdersTab />,
   };
 
-  const PLAN2_TAB_CONTENT: Record<string, JSX.Element> = {
+  // Plan 3 (investment) admin tabs
+  const PLAN3_TAB_CONTENT: Record<string, JSX.Element> = {
     overview:       <Plan2OverviewTab />,
     requests:       <Plan2InvestmentRequestsTab />,
     members:        <Plan2MembersTab />,
@@ -1574,25 +1721,36 @@ export default function Admin() {
     referral:       <Plan2Referral />,
   };
 
-  const PLAN1_TAB_LABELS: Record<string, string> = {
+  const SUB_TAB_LABELS: Record<string, string> = {
+    subscriptions: 'Subscriptions', overview: 'Overview', members: 'Members',
+    vendors: 'Vendors', products: 'Products', orders: 'Orders',
+  };
+  const PLAN2_TAB_LABELS: Record<string, string> = {
     overview: 'Overview', requests: 'Join Requests', members: 'Members',
     payoutlog: 'Payout Log', revenue: 'Root Revenue', gst: 'GST Report',
     vendors: 'Vendors', products: 'Products', orders: 'Orders',
   };
-  const PLAN2_TAB_LABELS: Record<string, string> = {
-    overview: 'Plan 2 Overview', requests: 'Investment Requests', members: 'Plan 2 Members',
+  const PLAN3_TAB_LABELS: Record<string, string> = {
+    overview: 'Plan 3 Overview', requests: 'Investment Requests', members: 'Plan 3 Members',
     returns: 'Monthly Returns', returnpayouts: 'Return Payouts', referral: 'Referral',
   };
 
-  const isPlan2 = adminPlan === 'PLAN2';
-  const content = isPlan2
-    ? (PLAN2_TAB_CONTENT[activeTab] ?? <Plan2OverviewTab />)
-    : (PLAN1_TAB_CONTENT[activeTab] ?? <OverviewTab />);
-  const title = isPlan2
-    ? (PLAN2_TAB_LABELS[activeTab] ?? 'Plan 2 Overview')
-    : (PLAN1_TAB_LABELS[activeTab] ?? 'Admin Panel');
-  const subtitle = isPlan2
-    ? 'Plan 2 — Investment Program management'
+  const isPlan3 = adminPlan === 'PLAN3';
+  const isPlan1Sub = adminPlan === 'PLAN1';
+  const content = isPlan3
+    ? (PLAN3_TAB_CONTENT[activeTab] ?? <Plan2OverviewTab />)
+    : isPlan1Sub
+    ? (SUB_TAB_CONTENT[activeTab] ?? <SubscriptionsTab />)
+    : (PLAN2_TAB_CONTENT[activeTab] ?? <OverviewTab />);
+  const title = isPlan3
+    ? (PLAN3_TAB_LABELS[activeTab] ?? 'Plan 3 Overview')
+    : isPlan1Sub
+    ? (SUB_TAB_LABELS[activeTab] ?? 'Subscriptions')
+    : (PLAN2_TAB_LABELS[activeTab] ?? 'Admin Panel');
+  const subtitle = isPlan3
+    ? 'Plan 3 — Investment Program management'
+    : isPlan1Sub
+    ? 'Plan 1 — Subscription management'
     : 'Manage members, approvals, payouts and reports';
 
   return (

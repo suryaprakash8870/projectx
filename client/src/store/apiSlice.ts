@@ -50,7 +50,7 @@ const baseQueryWithRefresh: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQu
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: baseQueryWithRefresh,
-  tagTypes: ['User', 'Wallet', 'Network', 'Joining', 'Products', 'Orders', 'Admin', 'Vendor', 'Categories', 'Plan2', 'Plan2Admin'],
+  tagTypes: ['User', 'Wallet', 'Network', 'Joining', 'Products', 'Orders', 'Admin', 'Vendor', 'Categories', 'Plan1Sub', 'Plan2', 'Plan2Admin'],
   endpoints: (build) => ({
     // ── Auth ──────────────────────────────────────────────────────────────
     register: build.mutation({
@@ -273,7 +273,34 @@ export const api = createApi({
       providesTags: ['Admin'],
     }),
 
-    // ── Plan 2 (Investment Program) ──────────────────────────────────────
+    // ── Plan 1 Subscription (₹250/month) ─────────────────────────────────
+    subscribePlan1: build.mutation({
+      query: () => ({ url: '/plan1/subscribe', method: 'POST' }),
+      invalidatesTags: ['Plan1Sub'],
+    }),
+    getPlan1Subscription: build.query<any, void>({
+      query: () => '/plan1/subscription',
+      providesTags: ['Plan1Sub'],
+    }),
+    // Admin
+    getPlan1AdminSubscriptions: build.query<any[], { status?: string }>({
+      query: ({ status } = {}) => `/plan1/admin/subscriptions${status ? `?status=${status}` : ''}`,
+      providesTags: ['Plan1Sub'],
+    }),
+    getPlan1AdminStats: build.query<any, void>({
+      query: () => '/plan1/admin/stats',
+      providesTags: ['Plan1Sub'],
+    }),
+    approvePlan1Subscription: build.mutation<any, string>({
+      query: (id) => ({ url: `/plan1/admin/subscriptions/${id}/approve`, method: 'POST' }),
+      invalidatesTags: ['Plan1Sub'],
+    }),
+    rejectPlan1Subscription: build.mutation<any, { id: string; note?: string }>({
+      query: ({ id, note }) => ({ url: `/plan1/admin/subscriptions/${id}/reject`, method: 'POST', body: { note } }),
+      invalidatesTags: ['Plan1Sub'],
+    }),
+
+    // ── Plan 3 (Investment Program — internally still plan2/* routes) ─────
     plan2CheckReferral: build.query<any, string>({
       query: (code) => `/plan2/auth/referral-check/${code}`,
     }),
@@ -404,7 +431,14 @@ export const {
   useGetGstReportQuery,
   useGetRevenueSplitsQuery,
   useGetCycleReportQuery,
-  // Plan 2
+  // Plan 1 Subscription
+  useSubscribePlan1Mutation,
+  useGetPlan1SubscriptionQuery,
+  useGetPlan1AdminSubscriptionsQuery,
+  useGetPlan1AdminStatsQuery,
+  useApprovePlan1SubscriptionMutation,
+  useRejectPlan1SubscriptionMutation,
+  // Plan 3 (Investment — internal routes still plan2/*)
   usePlan2CheckReferralQuery,
   usePlan2RegisterMutation,
   usePlan2VerifyOtpMutation,

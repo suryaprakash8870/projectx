@@ -35,6 +35,7 @@ model User {
   joiningRequests  JoiningRequest[]
   networkNode      NetworkNode?
   vendorProfile    Vendor?
+  plan1Subscriptions Plan1Subscription[]
 }
 
 // ─── Member ID Sequence ───────────────────────────────────────────────────────
@@ -82,6 +83,8 @@ model Wallet {
   purchaseBalance  Int      @default(0)    // 2.5% cashback from purchases
   incomeBalance    Int      @default(0)    // Withdrawable earnings from referrals
   gstBalance       Int      @default(0)    // GST tracking only (not spendable)
+  gtcBalance       Int      @default(0)    // GTC coins (500 per Plan 1 subscription)
+  gtcAddress       String?                 // GTC wallet address (auto-generated)
   updatedAt        DateTime @updatedAt
 
   user             User     @relation(fields: [userId], references: [id])
@@ -123,6 +126,29 @@ model GstRecord {
   requestId String   @unique
   amount    Int      @default(180)
   createdAt DateTime @default(now())
+}
+
+// ─── Plan 1: Monthly Subscription (₹250/month) ───────────────────────────────
+//
+// User subscribes to use the platform. Admin approves manually.
+// On approval: 500 GTC coins credited, subscription active for 30 days.
+// 7-day expiry warning shown. User can renew before expiry for seamless continuation.
+// Required to access Plan 2 referral program.
+
+model Plan1Subscription {
+  id           String    @id @default(uuid())
+  userId       String                             // links to User.id
+  amount       Int       @default(250)
+  status       String    @default("PENDING")      // PENDING | ACTIVE | EXPIRED | REJECTED
+  note         String?
+  approvedAt   DateTime?
+  expiresAt    DateTime?                          // 30 days after approval
+  gtcCredited  Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  user         User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 // ─── Categories ──────────────────────────────────────────────────────────────

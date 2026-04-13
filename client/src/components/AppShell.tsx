@@ -34,10 +34,10 @@ const memberNav = [
   { to: '/profile',      icon: icons.profile, label: 'Profile' },
 ];
 
-// Plan 2 user navigation — limited view (no shop, vendor, how-it-works, join-request, reports)
-const plan2MemberNav = [
-  { to: '/plan2/dashboard', icon: icons.home,    label: 'Dashboard' },
-  { to: '/plan2/referral',  icon: icons.network, label: 'Referral' },
+// Plan 3 (investment) user navigation
+const plan3MemberNav = [
+  { to: '/plan3/dashboard', icon: icons.home,    label: 'Dashboard' },
+  { to: '/plan3/referral',  icon: icons.network, label: 'Referral' },
 ];
 
 const reportsSubItems = [
@@ -50,7 +50,18 @@ const reportsSubItems = [
   { section: 'membership',   label: 'Membership' },
 ];
 
+// Plan 1 (subscription) admin tabs
 const adminSubItemsPlan1 = [
+  { tab: 'subscriptions',  label: 'Subscriptions' },
+  { tab: 'overview',       label: 'Overview' },
+  { tab: 'members',        label: 'Members' },
+  { tab: 'vendors',        label: 'Vendors' },
+  { tab: 'products',       label: 'Products' },
+  { tab: 'orders',         label: 'Orders' },
+];
+
+// Plan 2 (referral) admin tabs
+const adminSubItemsPlan2 = [
   { tab: 'overview',      label: 'Overview' },
   { tab: 'requests',      label: 'Join Requests' },
   { tab: 'members',       label: 'Members' },
@@ -62,10 +73,11 @@ const adminSubItemsPlan1 = [
   { tab: 'orders',        label: 'Orders' },
 ];
 
-const adminSubItemsPlan2 = [
+// Plan 3 (investment) admin tabs
+const adminSubItemsPlan3 = [
   { tab: 'overview',       label: 'Overview' },
   { tab: 'requests',       label: 'Investment Requests' },
-  { tab: 'members',        label: 'Plan 2 Members' },
+  { tab: 'members',        label: 'Plan 3 Members' },
   { tab: 'returns',        label: 'Monthly Returns' },
   { tab: 'returnpayouts',  label: 'Return Payouts' },
   { tab: 'referral',       label: 'Referral' },
@@ -91,27 +103,35 @@ export default function AppShell() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { memberId, role, name, planType, altAccessToken, altMemberId, altPlanType } = useSelector((s: RootState) => s.auth);
+  const { memberId, role, name, planType, altAccessToken } = useSelector((s: RootState) => s.auth);
   const adminPlan = useSelector((s: RootState) => s.adminPlan.selected);
   const { toggleTheme, isDark } = useTheme();
 
-  // Dual-plan member = logged-in member who ALSO has credentials stored for the other plan.
-  const isDualPlanMember = role !== 'ADMIN' && !!altAccessToken && !!altPlanType;
 
-  const adminDashboardLink = adminPlan === 'PLAN2' ? '/plan2/admin-dashboard' : '/dashboard';
+
+  const adminDashboardLink = adminPlan === 'PLAN3' ? '/plan3/admin-dashboard' : '/dashboard';
   const nav = role === 'ADMIN'
     ? [{ to: adminDashboardLink, icon: icons.home, label: 'Dashboard' }]
-    : (planType === 'PLAN2' ? plan2MemberNav : memberNav);
-  const adminSubItems = role === 'ADMIN' && adminPlan === 'PLAN2' ? adminSubItemsPlan2 : adminSubItemsPlan1;
+    : (planType === 'PLAN2' ? plan3MemberNav : memberNav);
+  const adminSubItems = role === 'ADMIN'
+    ? (adminPlan === 'PLAN3' ? adminSubItemsPlan3 : adminPlan === 'PLAN1' ? adminSubItemsPlan1 : adminSubItemsPlan2)
+    : [];
   const [planDropdownOpen, setPlanDropdownOpen] = useState(false);
   const mobileNav = role === 'ADMIN' ? [] : mobileBottomNav;
 
-  // Dual-plan member: swap primary ↔ alt credentials, then navigate
-  function handleMemberSwitchPlan(target: 'PLAN1' | 'PLAN2') {
-    if (target === planType) { setPlanDropdownOpen(false); return; }
-    dispatch(switchPlan());
+  // Member plan switching:
+  // Plan 1 (/plan1/dashboard) and Plan 2 (/dashboard) share the same PLAN1 JWT — just navigate
+  // Plan 3 (/plan3/dashboard) requires the PLAN2 JWT — swap if needed
+  function handleMemberSwitchPlan(targetRoute: '/plan1/dashboard' | '/dashboard' | '/plan3/dashboard') {
     setPlanDropdownOpen(false);
-    navigate(target === 'PLAN2' ? '/plan2/dashboard' : '/dashboard');
+    const needsPlan2JWT = targetRoute === '/plan3/dashboard';
+    const currentlyOnPlan2JWT = planType === 'PLAN2';
+    if (needsPlan2JWT && !currentlyOnPlan2JWT) {
+      dispatch(switchPlan());
+    } else if (!needsPlan2JWT && currentlyOnPlan2JWT) {
+      dispatch(switchPlan());
+    }
+    navigate(targetRoute);
   }
 
   const isOnAdmin   = location.pathname === '/admin';
@@ -120,28 +140,34 @@ export default function AppShell() {
   const currentAdminTab       = searchParams.get('tab')     || 'overview';
   const currentReportSection  = searchParams.get('section') || 'summary';
 
-  // Is the current view in Plan 2 context?
-  // — Plan 2 member logged in, OR
-  // — Admin with Plan 2 selected in the switcher
-  const isPlan2Context = planType === 'PLAN2' || (role === 'ADMIN' && adminPlan === 'PLAN2');
+  // Is the current view in Plan 3 (investment) context?
+  // — Plan 3 member (internal planType PLAN2) logged in, OR
+  // — Admin with Plan 3 selected in the switcher
+  const isPlan3Context = planType === 'PLAN2' || (role === 'ADMIN' && adminPlan === 'PLAN3');
+  // Is the current view in Plan 1 (subscription) context?
+  const isPlan1Context = !isPlan3Context && (location.pathname.startsWith('/plan1') || (role === 'ADMIN' && adminPlan === 'PLAN1'));
 
   // Page title for desktop header
   const pageTitles: Record<string, string> = {
-    '/dashboard':              'Dashboard',
-    '/network':                'Network Tree',
-    '/join-request':           'Join Request',
-    '/shop':                   'Shop',
-    '/wallet':                 'Wallet',
-    '/vendor':                 'Vendor',
-    '/reports':                'Reports',
-    '/app/how-it-works':           'How It Works',
-    '/profile':                'Profile',
-    '/admin':                  'Admin Panel',
-    '/plan2/dashboard':        'Dashboard',
-    '/plan2/admin-dashboard':  'Plan 2 Dashboard',
-    '/plan2/referral':         'Referral',
+    '/dashboard':               'Dashboard',
+    '/network':                 'Network Tree',
+    '/join-request':            'Join Request',
+    '/shop':                    'Shop',
+    '/wallet':                  'Wallet',
+    '/vendor':                  'Vendor',
+    '/reports':                 'Reports',
+    '/app/how-it-works':        'How It Works',
+    '/profile':                 'Profile',
+    '/admin':                   'Admin Panel',
+    '/plan1/dashboard':         'Plan 1 Dashboard',
+    '/plan2/dashboard':         'Dashboard',
+    '/plan2/admin-dashboard':   'Plan 3 Dashboard',
+    '/plan2/referral':          'Referral',
+    '/plan3/dashboard':         'Dashboard',
+    '/plan3/admin-dashboard':   'Plan 3 Dashboard',
+    '/plan3/referral':          'Referral',
   };
-  const pageTitle = pageTitles[location.pathname] || (isPlan2Context ? 'Plan-II' : 'Plan-I');
+  const pageTitle = pageTitles[location.pathname] || (isPlan3Context ? 'Plan-III' : isPlan1Context ? 'Plan-I' : 'Plan-II');
 
   // Submenus default open — user closes manually
   const [reportsOpen, setReportsOpen] = useState(false);
@@ -187,90 +213,75 @@ export default function AppShell() {
       >
         {/* Left: logo + plan switcher + page title */}
         <div className="flex items-center gap-3">
-          {/* Logo + plan switcher dropdown — shown for admin OR dual-plan member */}
+          {/* Logo + plan switcher dropdown */}
           <div className="flex items-center gap-2.5 shrink-0 relative" style={{ borderRight: '1px solid var(--color-border)', paddingRight: '1rem' }}>
             <div className="w-9 h-9 rounded-xl bg-brand-500 flex items-center justify-center text-white font-black text-base shadow-lg shadow-brand-500/30 glow">P</div>
-            {(role === 'ADMIN' || isDualPlanMember) ? (
-              <>
-                <button
-                  onClick={() => setPlanDropdownOpen(o => !o)}
-                  className="leading-tight flex items-center gap-1.5 hover:opacity-80"
-                  style={{ textAlign: 'left' }}
-                >
-                  <div>
-                    <div className="font-bold t-text" style={{ fontSize: '0.9375rem' }}>
-                      {isPlan2Context ? 'Plan-II' : 'Plan-I'}
-                    </div>
-                    <div className="t-text-4" style={{ fontSize: '0.6875rem' }}>
-                      {isPlan2Context ? 'Investment Program' : 'Referral Program'}
-                    </div>
-                  </div>
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
-                    className={`w-4 h-4 shrink-0 transition-transform duration-200 ${planDropdownOpen ? 'rotate-180' : ''}`}>
-                    <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                {planDropdownOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setPlanDropdownOpen(false)} />
-                    <div
-                      className="absolute top-full left-0 mt-2 w-64 rounded-xl shadow-xl z-50 overflow-hidden"
-                      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-                    >
-                      {([
-                        { id: 'PLAN1', title: 'Plan 1 — Referral Program', sub: 'MLM referral + cycles (₹1,000)' },
-                        { id: 'PLAN2', title: 'Plan 2 — Investment Program', sub: 'Monthly returns on ₹50k / ₹1L' },
-                      ] as const).map(opt => {
-                        // Determine which plan is currently active:
-                        //  - admin: reflects adminPlanSlice
-                        //  - dual-plan member: reflects current JWT planType
-                        const activeForAdmin = role === 'ADMIN' && adminPlan === opt.id;
-                        const activeForMember = isDualPlanMember && planType === opt.id;
-                        const isActive = activeForAdmin || activeForMember;
-                        // Member-only: show member IDs for each plan
-                        const memberIdForPlan = isDualPlanMember
-                          ? (planType === opt.id ? memberId : altMemberId)
-                          : null;
-                        return (
-                          <button
-                            key={opt.id}
-                            onClick={() => {
-                              if (role === 'ADMIN') {
-                                dispatch(setAdminPlan(opt.id));
-                                setPlanDropdownOpen(false);
-                                navigate(opt.id === 'PLAN2' ? '/plan2/admin-dashboard' : '/dashboard');
-                              } else {
-                                handleMemberSwitchPlan(opt.id);
-                              }
-                            }}
-                            className="w-full text-left px-4 py-3 hover:bg-[var(--color-overlay)] transition-colors"
-                            style={{ borderBottom: opt.id === 'PLAN1' ? '1px solid var(--color-border)' : 'none' }}
-                          >
-                            <div className="font-bold t-text text-sm flex items-center gap-2">
-                              {opt.title}
-                              {isActive && (
-                                <span className="inline-block w-2 h-2 rounded-full bg-brand-500 shrink-0" />
-                              )}
-                            </div>
-                            <div className="t-text-4 text-xs mt-0.5">
-                              {memberIdForPlan ? <span className="font-mono">{memberIdForPlan}</span> : opt.sub}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </>
-            ) : (
-              <div className="leading-tight">
+            <button
+              onClick={() => setPlanDropdownOpen(o => !o)}
+              className="leading-tight flex items-center gap-1.5 hover:opacity-80"
+              style={{ textAlign: 'left' }}
+            >
+              <div>
                 <div className="font-bold t-text" style={{ fontSize: '0.9375rem' }}>
-                  {isPlan2Context ? 'Plan-II' : 'Plan-I'}
+                  {isPlan3Context ? 'Plan-III' : isPlan1Context ? 'Plan-I' : 'Plan-II'}
                 </div>
                 <div className="t-text-4" style={{ fontSize: '0.6875rem' }}>
-                  {isPlan2Context ? 'Investment Program' : 'Network Platform'}
+                  {isPlan3Context ? 'Investment Program' : isPlan1Context ? 'Monthly Subscription' : 'Referral Program'}
                 </div>
               </div>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                className={`w-4 h-4 shrink-0 transition-transform duration-200 ${planDropdownOpen ? 'rotate-180' : ''}`}>
+                <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+              </svg>
+            </button>
+            {planDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setPlanDropdownOpen(false)} />
+                <div
+                  className="absolute top-full left-0 mt-2 w-72 rounded-xl shadow-xl z-50 overflow-hidden"
+                  style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                >
+                  {([
+                    { id: 'PLAN1' as const, adminId: 'PLAN1' as const, title: 'Plan 1 — Subscription', sub: 'Monthly platform access (₹250/month)', route: '/plan1/dashboard' as const },
+                    { id: 'PLAN1' as const, adminId: 'PLAN2' as const, title: 'Plan 2 — Referral Program', sub: 'Referral + cycles (₹1,000)', route: '/dashboard' as const },
+                    ...(role !== 'ADMIN' && !altAccessToken ? [] : [
+                      { id: 'PLAN2' as const, adminId: 'PLAN3' as const, title: 'Plan 3 — Investment', sub: 'Monthly returns on ₹50k / ₹1L', route: '/plan3/dashboard' as const },
+                    ]),
+                  ]).map((opt, idx, arr) => {
+                    const activeForAdmin = role === 'ADMIN' && adminPlan === opt.adminId;
+                    const activeForMember = role !== 'ADMIN' && (
+                      opt.adminId === 'PLAN3' ? planType === 'PLAN2' :
+                      opt.adminId === 'PLAN1' ? (planType !== 'PLAN2' && isPlan1Context) :
+                      (planType !== 'PLAN2' && !isPlan1Context)
+                    );
+                    const isActive = activeForAdmin || activeForMember;
+                    return (
+                      <button
+                        key={opt.adminId}
+                        onClick={() => {
+                          if (role === 'ADMIN') {
+                            dispatch(setAdminPlan(opt.adminId));
+                            setPlanDropdownOpen(false);
+                            navigate(opt.adminId === 'PLAN3' ? '/plan3/admin-dashboard' : '/dashboard');
+                          } else {
+                            handleMemberSwitchPlan(opt.route as '/plan1/dashboard' | '/dashboard' | '/plan3/dashboard');
+                          }
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-[var(--color-overlay)] transition-colors"
+                        style={{ borderBottom: idx < arr.length - 1 ? '1px solid var(--color-border)' : 'none' }}
+                      >
+                        <div className="font-bold t-text text-sm flex items-center gap-2">
+                          {opt.title}
+                          {isActive && (
+                            <span className="inline-block w-2 h-2 rounded-full bg-brand-500 shrink-0" />
+                          )}
+                        </div>
+                        <div className="t-text-4 text-xs mt-0.5">{opt.sub}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
           {/* Page title */}
@@ -525,10 +536,10 @@ export default function AppShell() {
             </div>
             <div>
               <div className="font-display font-bold t-text" style={{ fontSize: '1rem' }}>
-                {isPlan2Context ? 'Plan-II' : 'Plan-I'}
+                {isPlan3Context ? 'Plan-III' : isPlan1Context ? 'Plan-I' : 'Plan-II'}
               </div>
               <div className="t-text-4" style={{ fontSize: '0.6875rem' }}>
-                {isPlan2Context ? 'Investment Program' : 'Network Platform'}
+                {isPlan3Context ? 'Investment Program' : isPlan1Context ? 'Monthly Subscription' : 'Referral Program'}
               </div>
             </div>
           </div>

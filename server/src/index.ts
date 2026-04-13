@@ -10,6 +10,7 @@ import walletRouter from './routes/wallet';
 import { productsRouter, ordersRouter } from './routes/productsOrders';
 import adminRouter from './routes/admin';
 import vendorRouter from './routes/vendor';
+import plan1SubscriptionRouter from './routes/plan1Subscription';
 import plan2AuthRouter from './routes/plan2Auth';
 import plan2UserRouter from './routes/plan2User';
 import adminPlan2Router from './routes/adminPlan2';
@@ -42,7 +43,10 @@ app.use('/api/orders',       ordersRouter);
 app.use('/api/admin',        adminRouter);
 app.use('/api/vendor',       vendorRouter);
 
-// Plan 2 — Investment Program (completely separate from Plan 1)
+// Plan 1 — Monthly Subscription (₹250/month)
+app.use('/api/plan1',        plan1SubscriptionRouter);
+
+// Plan 3 — Investment Program (internal routes still use plan2/* prefix for backwards compat)
 app.use('/api/plan2/auth',   plan2AuthRouter);
 app.use('/api/plan2',        plan2UserRouter);
 app.use('/api/admin/plan2',  adminPlan2Router);

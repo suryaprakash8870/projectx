@@ -7,6 +7,7 @@ import {
   useGetNetworkStatsQuery,
   useGetPayoutSlotsQuery,
   useGetTransactionsQuery,
+  useGetPlan1SubscriptionQuery,
 } from '../store/apiSlice';
 import {
   RefreshIcon, UserIcon, UsersIcon,
@@ -410,6 +411,11 @@ function WelcomeBanner({ user, wallet }: { user: any; wallet: any }) {
 }
 
 // ── Main Dashboard page ───────────────────────────────────────────────────────
+function daysUntil(date: string | null | undefined): number | null {
+  if (!date) return null;
+  return Math.ceil((new Date(date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+}
+
 export default function Dashboard() {
   const { memberId, role } = useSelector((s: RootState) => s.auth);
 
@@ -418,9 +424,45 @@ export default function Dashboard() {
   const { data: stats,   isLoading: statsLoading   } = useGetNetworkStatsQuery();
   const { data: slots,   isLoading: slotsLoading   } = useGetPayoutSlotsQuery();
   const { data: txData,  isLoading: txLoading      } = useGetTransactionsQuery({ page: 1, limit: 5 });
+  const { data: sub } = useGetPlan1SubscriptionQuery(undefined, { skip: role === 'ADMIN' });
+
+  const subDaysLeft = sub?.status === 'ACTIVE' ? daysUntil(sub.expiresAt) : null;
+  const showSubExpiry = subDaysLeft !== null && subDaysLeft <= 7;
+  const showSubBanner = role !== 'ADMIN' && (!sub || sub.status === 'EXPIRED' || sub.status === 'REJECTED' || showSubExpiry || sub.status === 'PENDING');
 
   return (
     <div className="space-y-5 animate-fade-in">
+
+      {/* ── Plan 1 Subscription Banner ──────────────────────────────────── */}
+      {showSubBanner && (
+        <div className="rounded-2xl p-4 flex items-start gap-3"
+          style={{
+            background: sub?.status === 'PENDING' ? 'rgba(245,158,11,0.08)' : showSubExpiry ? 'rgba(239,68,68,0.08)' : 'rgba(0,102,255,0.08)',
+            border: `1px solid ${sub?.status === 'PENDING' ? 'rgba(245,158,11,0.3)' : showSubExpiry ? 'rgba(239,68,68,0.3)' : 'rgba(0,102,255,0.3)'}`,
+          }}>
+          <div className="flex-1">
+            <div className="font-bold" style={{ color: sub?.status === 'PENDING' ? '#f59e0b' : showSubExpiry ? '#ef4444' : '#0066ff', fontSize: '0.9375rem' }}>
+              {sub?.status === 'PENDING'
+                ? 'Plan 1 — Subscription Pending Approval'
+                : showSubExpiry
+                ? `Plan 1 — Subscription expires in ${subDaysLeft} day${subDaysLeft !== 1 ? 's' : ''}`
+                : 'Subscribe to Plan 1 to unlock the platform'}
+            </div>
+            <p className="text-sm t-text-3 mt-0.5">
+              {sub?.status === 'PENDING'
+                ? 'Your subscription request is awaiting admin approval.'
+                : showSubExpiry
+                ? 'Renew now to avoid interruption to your access.'
+                : 'Plan 1 — ₹250/month. Get full platform access + 500 GTC coins.'}
+            </p>
+          </div>
+          <Link to="/plan1/dashboard"
+            className="shrink-0 px-3 py-1.5 rounded-xl text-sm font-bold text-white"
+            style={{ background: sub?.status === 'PENDING' ? '#f59e0b' : showSubExpiry ? '#ef4444' : '#0066ff' }}>
+            {sub?.status === 'PENDING' ? 'View Status' : showSubExpiry ? 'Renew' : 'Subscribe'}
+          </Link>
+        </div>
+      )}
 
       {/* ── Welcome Banner ──────────────────────────────────────────────── */}
       {userLoading || walletLoading

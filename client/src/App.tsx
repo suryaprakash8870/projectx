@@ -14,10 +14,12 @@ import Admin from './pages/Admin';
 import Vendor from './pages/Vendor';
 import Reports from './pages/Reports';
 import HowItWorks from './pages/HowItWorks';
+import Plan1Dashboard from './pages/Plan1Dashboard';
 import Plan2Join from './pages/Plan2Join';
-import Plan2Dashboard from './pages/Plan2Dashboard';
-import Plan2AdminDashboard from './pages/Plan2AdminDashboard';
-import Plan2Referral from './pages/Plan2Referral';
+import Plan3Join from './pages/Plan3Join';
+import Plan3Dashboard from './pages/Plan3Dashboard';
+import Plan3AdminDashboard from './pages/Plan3AdminDashboard';
+import Plan3Referral from './pages/Plan3Referral';
 import ProductDetail from './pages/ProductDetail';
 import WebsiteLayout from './pages/website/WebsiteLayout';
 import { HomePage, HowItWorksPage, FeaturesPage, ShopsPage, FAQPage } from './pages/website/WebsitePages';
@@ -34,7 +36,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function Plan2Route({ children }: { children: React.ReactNode }) {
+function Plan3Route({ children }: { children: React.ReactNode }) {
   const { accessToken, planType } = useSelector((s: RootState) => s.auth);
   if (!accessToken) return <Navigate to="/login" replace />;
   if (planType !== 'PLAN2') return <Navigate to="/dashboard" replace />;
@@ -45,7 +47,7 @@ function GuestRoute({ children }: { children: React.ReactNode }) {
   const { accessToken, planType, role } = useSelector((s: RootState) => s.auth);
   if (!accessToken) return <>{children}</>;
   if (role === 'ADMIN') return <Navigate to="/admin" replace />;
-  return <Navigate to={planType === 'PLAN2' ? '/plan2/dashboard' : '/dashboard'} replace />;
+  return <Navigate to={planType === 'PLAN2' ? '/plan3/dashboard' : '/dashboard'} replace />;
 }
 
 /** Redirect /register?ref=X&leg=Y → /login?ref=X&leg=Y (preserves query params) */
@@ -71,12 +73,14 @@ export default function App() {
       <Route path="/signup" element={<Navigate to="/login" replace />} />
       <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
       <Route path="/plan2/join" element={<Plan2Join />} />
+      <Route path="/plan3/join" element={<Plan3Join />} />
 
       {/* Legacy redirects — preserve query params for referral links */}
       <Route path="/register" element={<RegisterRedirect />} />
 
       {/* ── Protected: member ─────────────────────────────────────────── */}
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
+        <Route path="/plan1/dashboard" element={<Plan1Dashboard />} />
         <Route path="/dashboard"    element={<Dashboard />} />
         <Route path="/network"      element={<Network />} />
         <Route path="/join-request" element={<JoinRequest />} />
@@ -89,10 +93,13 @@ export default function App() {
         <Route path="/profile"      element={<Profile />} />
       </Route>
 
-      {/* ── Protected: Plan 2 members ─────────────────────────────────── */}
-      <Route element={<Plan2Route><AppShell /></Plan2Route>}>
-        <Route path="/plan2/dashboard" element={<Plan2Dashboard />} />
-        <Route path="/plan2/referral"  element={<Plan2Referral />} />
+      {/* ── Protected: Plan 3 (investment) members ───────────────────── */}
+      <Route element={<Plan3Route><AppShell /></Plan3Route>}>
+        <Route path="/plan3/dashboard" element={<Plan3Dashboard />} />
+        <Route path="/plan3/referral"  element={<Plan3Referral />} />
+        {/* Legacy /plan2/* → /plan3/* redirects */}
+        <Route path="/plan2/dashboard" element={<Navigate to="/plan3/dashboard" replace />} />
+        <Route path="/plan2/referral"  element={<Navigate to="/plan3/referral" replace />} />
       </Route>
 
       {/* ── Admin ─────────────────────────────────────────────────────── */}
@@ -101,7 +108,11 @@ export default function App() {
       </Route>
 
       <Route path="/plan2/admin-dashboard" element={<AdminRoute><AppShell /></AdminRoute>}>
-        <Route index element={<Plan2AdminDashboard />} />
+        <Route index element={<Navigate to="/plan3/admin-dashboard" replace />} />
+      </Route>
+
+      <Route path="/plan3/admin-dashboard" element={<AdminRoute><AppShell /></AdminRoute>}>
+        <Route index element={<Plan3AdminDashboard />} />
       </Route>
 
       {/* Wildcard */}
