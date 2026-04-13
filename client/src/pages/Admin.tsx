@@ -302,18 +302,22 @@ function RequestsTab() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [rejectNote, setRejectNote] = useState('');
   const [rejectId, setRejectId]     = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   const { data: requests = [], refetch } = useGetAllJoiningsQuery(statusFilter);
-  const [approve, { isLoading: approving }] = useApproveJoiningMutation();
+  const [approve] = useApproveJoiningMutation();
   const [reject,  { isLoading: rejecting }] = useRejectJoiningMutation();
 
   async function handleApprove(id: string) {
+    setApprovingId(id);
     try {
       await approve(id).unwrap();
       toast.success('Joining approved! Payouts processed.');
       refetch();
     } catch (err: any) {
       toast.error(err?.data?.message || 'Approval failed');
+    } finally {
+      setApprovingId(null);
     }
   }
 
@@ -369,12 +373,14 @@ function RequestsTab() {
                 <td>
                   {r.status === 'PENDING' && (
                     <div className="flex gap-2">
-                      <button onClick={() => handleApprove(r.id)} disabled={approving}
+                      <button onClick={() => handleApprove(r.id)} disabled={approvingId === r.id}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-semibold text-xs transition-colors"
-                        style={{ background: 'rgba(16,185,129,0.1)', color: '#059669', border: '1px solid rgba(16,185,129,0.2)' }}>
-                        <CheckCircleIcon size={13} /> Approve
+                        style={{ background: 'rgba(16,185,129,0.1)', color: '#059669', border: '1px solid rgba(16,185,129,0.2)', opacity: approvingId === r.id ? 0.7 : 1 }}>
+                        {approvingId === r.id
+                          ? <><RefreshIcon size={13} className="animate-spin" /> Processing…</>
+                          : <><CheckCircleIcon size={13} /> Approve</>}
                       </button>
-                      <button onClick={() => setRejectId(r.id)}
+                      <button onClick={() => setRejectId(r.id)} disabled={!!approvingId}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-semibold text-xs transition-colors"
                         style={{ background: 'rgba(239,68,68,0.1)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.2)' }}>
                         <XCircleIcon size={13} /> Reject
@@ -409,12 +415,14 @@ function RequestsTab() {
             </div>
             {r.status === 'PENDING' && (
               <div className="flex gap-2 mt-3">
-                <button onClick={() => handleApprove(r.id)} disabled={approving}
+                <button onClick={() => handleApprove(r.id)} disabled={approvingId === r.id}
                   className="inline-flex items-center justify-center gap-1.5 flex-1 px-2.5 py-1.5 rounded-lg font-semibold text-xs transition-colors"
-                  style={{ background: 'rgba(16,185,129,0.1)', color: '#059669', border: '1px solid rgba(16,185,129,0.2)' }}>
-                  <CheckCircleIcon size={13} /> Approve
+                  style={{ background: 'rgba(16,185,129,0.1)', color: '#059669', border: '1px solid rgba(16,185,129,0.2)', opacity: approvingId === r.id ? 0.7 : 1 }}>
+                  {approvingId === r.id
+                    ? <><RefreshIcon size={13} className="animate-spin" /> Processing…</>
+                    : <><CheckCircleIcon size={13} /> Approve</>}
                 </button>
-                <button onClick={() => setRejectId(r.id)}
+                <button onClick={() => setRejectId(r.id)} disabled={!!approvingId}
                   className="inline-flex items-center justify-center gap-1.5 flex-1 px-2.5 py-1.5 rounded-lg font-semibold text-xs transition-colors"
                   style={{ background: 'rgba(239,68,68,0.1)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.2)' }}>
                   <XCircleIcon size={13} /> Reject
@@ -439,8 +447,10 @@ function RequestsTab() {
               onChange={e => setRejectNote(e.target.value)}
             />
             <div className="flex gap-2 mt-4">
-              <button onClick={() => setRejectId(null)} className="btn-secondary flex-1">Cancel</button>
-              <button onClick={handleReject} disabled={rejecting} className="btn-danger flex-1">Confirm Reject</button>
+              <button onClick={() => setRejectId(null)} disabled={rejecting} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={handleReject} disabled={rejecting} className="btn-danger flex-1 inline-flex items-center justify-center gap-1.5">
+                {rejecting ? <><RefreshIcon size={14} className="animate-spin" /> Rejecting…</> : 'Confirm Reject'}
+              </button>
             </div>
           </div>
         </div>

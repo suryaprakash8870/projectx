@@ -332,8 +332,10 @@ export default function Landing() {
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
-    if (regForm.referralCode && !regForm.leg) { toast.error('Please select Left or Right tree positioning.'); return; }
-    if (regForm.referralCode && !refData) { toast.error('Invalid Referral Code.'); return; }
+    if (!regForm.referralCode) { toast.error('Referral Code is required.'); return; }
+    if (regForm.referralCode.length < 8) { toast.error('Enter a valid 8-character Referral Code.'); return; }
+    if (!refData) { toast.error('Invalid Referral Code. Please check and try again.'); return; }
+    if (!regForm.leg) { toast.error('Please select Left or Right tree positioning.'); return; }
     try {
       const res = await register(regForm).unwrap();
       setRegUserId(res.userId); setRegMemberId(res.memberId);
@@ -502,7 +504,7 @@ export default function Landing() {
               {regStep === 'form' && (
                 <form onSubmit={handleRegister} className="space-y-3 animate-fade-in">
                   <div>
-                    <label className="block font-semibold mb-1.5" style={{ fontSize: '0.875rem', color: '#334155' }}>Full Name</label>
+                    <label className="block font-semibold mb-1.5" style={{ fontSize: '0.875rem', color: '#334155' }}>Full Name <span className="text-rose-500">*</span></label>
                     <div className="relative">
                       <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'rgba(15,23,42,0.3)' }}><UserIcon size={17} /></div>
                       <input className="input" style={{ paddingLeft: '2.75rem', background: 'white', borderColor: 'rgba(15,23,42,0.12)', color: '#0f172a' }}
@@ -511,7 +513,7 @@ export default function Landing() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-semibold mb-1.5" style={{ fontSize: '0.875rem', color: '#334155' }}>Mobile</label>
+                      <label className="block font-semibold mb-1.5" style={{ fontSize: '0.875rem', color: '#334155' }}>Mobile <span className="text-rose-500">*</span></label>
                       <div className="relative">
                         <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'rgba(15,23,42,0.3)' }}><PhoneIcon size={15} /></div>
                         <input className="input" style={{ paddingLeft: '2.1rem', background: 'white', borderColor: 'rgba(15,23,42,0.12)', color: '#0f172a' }}
@@ -525,7 +527,7 @@ export default function Landing() {
                     </div>
                   </div>
                   <div>
-                    <label className="block font-semibold mb-1.5" style={{ fontSize: '0.875rem', color: '#334155' }}>Password</label>
+                    <label className="block font-semibold mb-1.5" style={{ fontSize: '0.875rem', color: '#334155' }}>Password <span className="text-rose-500">*</span></label>
                     <div className="relative">
                       <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'rgba(15,23,42,0.3)' }}><LockIcon size={17} /></div>
                       <input className="input" style={{ paddingLeft: '2.75rem', background: 'white', borderColor: 'rgba(15,23,42,0.12)', color: '#0f172a' }}
@@ -533,9 +535,9 @@ export default function Landing() {
                     </div>
                   </div>
                   <div>
-                    <label className="block font-semibold mb-1.5" style={{ fontSize: '0.875rem', color: '#334155' }}>Referral Code <span style={{ color: 'rgba(15,23,42,0.35)', fontWeight: 400 }}>(opt)</span></label>
+                    <label className="block font-semibold mb-1.5" style={{ fontSize: '0.875rem', color: '#334155' }}>Referral Code <span className="text-rose-500">*</span></label>
                     <input className="input font-mono uppercase" style={{ background: 'white', borderColor: 'rgba(15,23,42,0.12)', color: '#0f172a' }}
-                      placeholder="e.g. IND00501" maxLength={8} value={regForm.referralCode} onChange={e => setRegForm(f => ({ ...f, referralCode: e.target.value.toUpperCase() }))} />
+                      placeholder="e.g. IND00501" maxLength={8} required value={regForm.referralCode} onChange={e => setRegForm(f => ({ ...f, referralCode: e.target.value.toUpperCase() }))} />
                   </div>
                   {regForm.referralCode.length >= 8 && (
                     <div className="rounded-xl p-3.5 border animate-fade-in" style={{ background: 'rgba(0,102,255,0.05)', borderColor: 'rgba(0,102,255,0.14)' }}>
