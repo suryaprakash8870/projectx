@@ -1557,47 +1557,31 @@ function SubscriptionsTab() {
   const [statusFilter, setStatusFilter] = useState<string>('PENDING');
   const { data: subs = [], isLoading, refetch } = useGetPlan1AdminSubscriptionsQuery({ status: statusFilter });
   const { data: stats } = useGetPlan1AdminStatsQuery();
-  const [approve] = useApprovePlan1SubscriptionMutation();
-  const [reject]  = useRejectPlan1SubscriptionMutation();
-  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [approve, { isLoading: approving }] = useApprovePlan1SubscriptionMutation();
+  const [reject,  { isLoading: rejecting }]  = useRejectPlan1SubscriptionMutation();
+  const [rejectId, setRejectId] = useState<string | null>(null);
+  const [rejectNote, setRejectNote] = useState('');
 
   async function handleApprove(id: string) {
-    setLoadingId(id + '-approve');
     try {
       await approve(id).unwrap();
       toast.success('Subscription approved — 500 GTC credited');
       refetch();
     } catch (e: any) { toast.error(e?.data?.message || 'Failed'); }
-    finally { setLoadingId(null); }
   }
 
-  async function handleReject(id: string) {
-    setLoadingId(id + '-reject');
+  async function handleReject() {
+    if (!rejectId) return;
     try {
-      await reject({ id }).unwrap();
+      await reject({ id: rejectId, note: rejectNote }).unwrap();
       toast.success('Subscription rejected');
+      setRejectId(null); setRejectNote('');
       refetch();
     } catch (e: any) { toast.error(e?.data?.message || 'Failed'); }
-    finally { setLoadingId(null); }
   }
 
-  const statusCfg: Record<string, { color: string; bg: string; label: string }> = {
-    PENDING:  { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  label: 'Pending'  },
-    ACTIVE:   { color: '#10b981', bg: 'rgba(16,185,129,0.12)',  label: 'Active'   },
-    EXPIRED:  { color: '#ef4444', bg: 'rgba(239,68,68,0.12)',   label: 'Expired'  },
-    REJECTED: { color: '#ef4444', bg: 'rgba(239,68,68,0.12)',   label: 'Rejected' },
-  };
-
-  const filterTabs = [
-    { key: '',          label: 'All',      count: stats ? (stats.total || 0) : null },
-    { key: 'PENDING',   label: 'Pending',  count: stats?.pending  ?? null },
-    { key: 'ACTIVE',    label: 'Active',   count: stats?.active   ?? null },
-    { key: 'EXPIRED',   label: 'Expired',  count: stats?.expired  ?? null },
-    { key: 'REJECTED',  label: 'Rejected', count: null },
-  ];
-
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <KPICard label="Total"    value={stats?.total    || 0} icon={<UsersIcon size={16} />}       fullBg="#0066ff" fullBgText />
@@ -1606,129 +1590,100 @@ function SubscriptionsTab() {
         <KPICard label="Expired"  value={stats?.expired  || 0} icon={<XCircleIcon size={16} />}     fullBg="#ef4444" fullBgText />
       </div>
 
-      <div className="card space-y-4">
-        {/* Filter tabs */}
-        <div className="flex items-center gap-2 flex-wrap pb-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
-          {filterTabs.map(f => {
-            const isActive = statusFilter === f.key;
-            return (
-              <button key={f.key} onClick={() => setStatusFilter(f.key)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
-                style={{
-                  background: isActive ? '#0066ff' : 'var(--color-overlay)',
-                  color: isActive ? '#fff' : 'var(--color-text-3)',
-                  border: isActive ? '1px solid #0066ff' : '1px solid var(--color-border)',
-                }}>
-                {f.label}
-                {f.count !== null && (
-                  <span className="inline-flex items-center justify-center rounded-full text-xs font-black"
-                    style={{
-                      minWidth: '18px', height: '18px', padding: '0 4px',
-                      background: isActive ? 'rgba(255,255,255,0.25)' : 'var(--color-surface-2)',
-                      color: isActive ? '#fff' : 'var(--color-text-4)',
-                    }}>
-                    {f.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* List */}
-        {isLoading ? (
-          <div className="space-y-3">
-            {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-20 rounded-2xl" />)}
-          </div>
-        ) : !subs.length ? (
-          <div className="py-12 flex flex-col items-center gap-2">
-            <DocumentIcon size={40} />
-            <div className="font-bold t-text">No subscriptions found</div>
-            <div className="text-sm t-text-4">Try a different status filter</div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {subs.map((sub: any) => {
-              const cfg = statusCfg[sub.status] || { color: '#888', bg: 'rgba(136,136,136,0.1)', label: sub.status };
-              const isApprovingThis = loadingId === sub.id + '-approve';
-              const isRejectingThis = loadingId === sub.id + '-reject';
-              const isBusy = isApprovingThis || isRejectingThis;
-
-              return (
-                <div key={sub.id} className="rounded-2xl p-4"
-                  style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    {/* Left: member info */}
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm text-white shrink-0"
-                        style={{ background: cfg.color }}>
-                        {(sub.user?.name || 'U')[0].toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="font-bold t-text truncate" style={{ fontSize: '0.9375rem' }}>
-                          {sub.user?.name || '—'}
-                        </div>
-                        <div className="font-mono text-xs t-text-4">{sub.user?.memberId}</div>
-                        {sub.user?.mobile && (
-                          <div className="text-xs t-text-4">{sub.user.mobile}</div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Right: status + actions */}
-                    <div className="flex items-center gap-2 flex-wrap shrink-0">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
-                        style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}44` }}>
-                        {cfg.label}
-                      </span>
-                      {sub.status === 'PENDING' && (
-                        <>
-                          <button onClick={() => handleApprove(sub.id)} disabled={isBusy}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-opacity"
-                            style={{ background: '#10b981', opacity: isBusy ? 0.6 : 1 }}>
-                            {isApprovingThis ? <><RefreshIcon size={11} className="animate-spin" /> Approving…</> : <><CheckCircleIcon size={13} /> Approve</>}
-                          </button>
-                          <button onClick={() => handleReject(sub.id)} disabled={isBusy}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-opacity"
-                            style={{ background: '#ef4444', opacity: isBusy ? 0.6 : 1 }}>
-                            {isRejectingThis ? <><RefreshIcon size={11} className="animate-spin" /> Rejecting…</> : <><XCircleIcon size={13} /> Reject</>}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Meta row */}
-                  <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-3 pt-3"
-                    style={{ borderTop: '1px solid var(--color-border)' }}>
-                    <span className="text-xs t-text-4">
-                      <span className="font-semibold t-text-3">Submitted:</span>{' '}
-                      {new Date(sub.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </span>
-                    {sub.approvedAt && (
-                      <span className="text-xs t-text-4">
-                        <span className="font-semibold t-text-3">Approved:</span>{' '}
-                        {new Date(sub.approvedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </span>
-                    )}
-                    {sub.expiresAt && (
-                      <span className="text-xs t-text-4">
-                        <span className="font-semibold t-text-3">Expires:</span>{' '}
-                        {new Date(sub.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </span>
-                    )}
-                    {sub.gtcCredited && (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-500">
-                        <BoltIcon size={11} /> 500 GTC credited
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+      {/* Filter */}
+      <div className="flex gap-2">
+        {['PENDING', 'ACTIVE', 'EXPIRED', 'REJECTED', ''].map(s => (
+          <button key={s || 'all'} onClick={() => setStatusFilter(s)}
+            className="px-3 py-1.5 rounded-full font-semibold text-xs transition-all border"
+            style={{
+              background: statusFilter === s ? '#0066ff' : 'transparent',
+              color: statusFilter === s ? 'white' : 'var(--color-text-3)',
+              borderColor: statusFilter === s ? '#0066ff' : 'var(--color-border)',
+            }}>
+            {s || 'All'}
+          </button>
+        ))}
       </div>
+
+      {/* Table */}
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Member ID</th>
+              <th>Name</th>
+              <th>Mobile</th>
+              <th>Submitted</th>
+              <th>Approved</th>
+              <th>Expires</th>
+              <th>Status</th>
+              <th>GTC</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading && (
+              <tr><td colSpan={9} className="text-center py-8 t-text-4 text-sm">Loading…</td></tr>
+            )}
+            {!isLoading && subs.map((sub: any) => (
+              <tr key={sub.id}>
+                <td>
+                  <div className="font-mono text-brand-400 font-bold">{sub.user?.memberId}</div>
+                </td>
+                <td className="text-xs t-text-3">{sub.user?.name}</td>
+                <td className="font-mono text-xs t-text-3">{sub.user?.mobile || '—'}</td>
+                <td className="text-xs t-text-4">{new Date(sub.createdAt).toLocaleDateString('en-IN')}</td>
+                <td className="text-xs t-text-4">{sub.approvedAt ? new Date(sub.approvedAt).toLocaleDateString('en-IN') : '—'}</td>
+                <td className="text-xs t-text-4">{sub.expiresAt ? new Date(sub.expiresAt).toLocaleDateString('en-IN') : '—'}</td>
+                <td>
+                  <span className={`badge badge-${sub.status.toLowerCase()}`}>{sub.status}</span>
+                </td>
+                <td>
+                  {sub.gtcCredited
+                    ? <span className="text-xs font-bold text-emerald-500">+500</span>
+                    : <span className="text-xs t-text-4">—</span>
+                  }
+                </td>
+                <td>
+                  {sub.status === 'PENDING' && (
+                    <div className="flex gap-1.5">
+                      <button onClick={() => handleApprove(sub.id)} disabled={approving}
+                        className="px-2.5 py-1 rounded text-xs font-semibold"
+                        style={{ background: 'rgba(16,185,129,0.1)', color: '#059669', border: '1px solid rgba(16,185,129,0.2)' }}>
+                        {approving ? '…' : 'Approve'}
+                      </button>
+                      <button onClick={() => setRejectId(sub.id)}
+                        className="px-2.5 py-1 rounded text-xs font-semibold"
+                        style={{ background: 'rgba(239,68,68,0.1)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.2)' }}>
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {!isLoading && !subs.length && (
+              <tr><td colSpan={9} className="text-center py-8 t-text-4 text-sm">No subscriptions found</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Reject modal */}
+      {rejectId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setRejectId(null)} />
+          <div className="relative card max-w-md w-full">
+            <h3 className="font-bold t-text mb-3">Reject Subscription</h3>
+            <textarea className="input resize-none" rows={3} placeholder="Rejection reason (optional)"
+              value={rejectNote} onChange={e => setRejectNote(e.target.value)} />
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setRejectId(null)} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={handleReject} disabled={rejecting} className="btn-danger flex-1">Confirm Reject</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
