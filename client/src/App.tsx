@@ -47,7 +47,7 @@ function GuestRoute({ children }: { children: React.ReactNode }) {
   const { accessToken, planType, role } = useSelector((s: RootState) => s.auth);
   if (!accessToken) return <>{children}</>;
   if (role === 'ADMIN') return <Navigate to="/admin" replace />;
-  return <Navigate to={planType === 'PLAN2' ? '/plan3/dashboard' : '/dashboard'} replace />;
+  return <Navigate to={planType === 'PLAN2' ? '/plan3/dashboard' : '/plan1/dashboard'} replace />;
 }
 
 /** Redirect /register?ref=X&leg=Y → /login?ref=X&leg=Y (preserves query params) */

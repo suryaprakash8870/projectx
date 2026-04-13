@@ -1,8 +1,9 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import type { RootState } from '../store/store';
-import { useGetMyJoiningQuery, useSubmitJoiningMutation } from '../store/apiSlice';
+import { useGetMyJoiningQuery, useSubmitJoiningMutation, useGetPlan1SubscriptionQuery } from '../store/apiSlice';
 import { ClockIcon, CheckCircleIcon, XCircleIcon, SparklesIcon, DocumentIcon, LightbulbIcon, ChevronRightIcon } from '../components/Icons';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -18,11 +19,20 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
 };
 
 export default function JoinRequest() {
+  const navigate = useNavigate();
   const { memberId } = useSelector((s: RootState) => s.auth);
   const { data: request, isLoading, refetch } = useGetMyJoiningQuery();
   const [submit, { isLoading: submitting }] = useSubmitJoiningMutation();
+  const { data: plan1Sub } = useGetPlan1SubscriptionQuery();
+  const [showPlan1Warning, setShowPlan1Warning] = useState(false);
+
+  const hasPlan1Active = plan1Sub?.status === 'ACTIVE';
 
   async function handleSubmit() {
+    if (!hasPlan1Active) {
+      setShowPlan1Warning(true);
+      return;
+    }
     try {
       await submit({}).unwrap();
       toast.success('Joining request submitted!');
@@ -34,6 +44,44 @@ export default function JoinRequest() {
 
   return (
     <div className="max-w-lg mx-auto space-y-6 animate-fade-in">
+
+      {/* Plan 1 subscription required warning modal */}
+      {showPlan1Warning && (
+        <>
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div className="rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4"
+              style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                  <XCircleIcon size={22} />
+                </div>
+                <div>
+                  <div className="font-bold t-text" style={{ fontSize: '1rem' }}>Plan 1 Required</div>
+                  <div className="text-xs t-text-4 mt-0.5">Active subscription needed</div>
+                </div>
+              </div>
+              <p className="text-sm t-text-3">
+                You need an active <strong className="t-text">Plan 1 subscription (₹250/month)</strong> before you can join Plan 2. Subscribe first, then come back to submit your joining request.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowPlan1Warning(false)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors"
+                  style={{ background: 'var(--color-overlay)', color: 'var(--color-text-3)', border: '1px solid var(--color-border)' }}>
+                  Cancel
+                </button>
+                <button
+                  onClick={() => { setShowPlan1Warning(false); navigate('/plan1/dashboard'); }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white"
+                  style={{ background: '#0066ff' }}>
+                  Go to Plan 1
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
       <div>
         <h1 className="text-2xl font-bold t-text">Joining Request</h1>
         <p className="t-text-3 text-sm mt-0.5">Pay ₹1,000 to activate your membership</p>
