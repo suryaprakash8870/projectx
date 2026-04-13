@@ -18,7 +18,7 @@ function generateGtcAddress(userId: string): string {
 // POST /api/plan1/subscribe
 router.post('/subscribe', jwtAuth, async (req: any, res, next) => {
   try {
-    const userId = req.userId;
+    const userId = req.user!.userId;
 
     // Block if PENDING or ACTIVE subscription already exists
     const existing = await db.plan1Subscription.findFirst({
@@ -42,7 +42,7 @@ router.post('/subscribe', jwtAuth, async (req: any, res, next) => {
 // GET /api/plan1/subscription
 router.get('/subscription', jwtAuth, async (req: any, res, next) => {
   try {
-    const userId = req.userId;
+    const userId = req.user!.userId;
 
     // Auto-expire any ACTIVE subscriptions past their expiresAt
     await db.plan1Subscription.updateMany({
