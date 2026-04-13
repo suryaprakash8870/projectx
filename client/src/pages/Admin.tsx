@@ -1557,31 +1557,44 @@ function SubscriptionsTab() {
   const [statusFilter, setStatusFilter] = useState<string>('PENDING');
   const { data: subs = [], isLoading, refetch } = useGetPlan1AdminSubscriptionsQuery({ status: statusFilter });
   const { data: stats } = useGetPlan1AdminStatsQuery();
-  const [approve, { isLoading: approving }] = useApprovePlan1SubscriptionMutation();
-  const [reject,  { isLoading: rejecting }]  = useRejectPlan1SubscriptionMutation();
+  const [approve] = useApprovePlan1SubscriptionMutation();
+  const [reject]  = useRejectPlan1SubscriptionMutation();
+  const [loadingId, setLoadingId] = useState<string | null>(null);
 
   async function handleApprove(id: string) {
+    setLoadingId(id + '-approve');
     try {
       await approve(id).unwrap();
       toast.success('Subscription approved — 500 GTC credited');
       refetch();
     } catch (e: any) { toast.error(e?.data?.message || 'Failed'); }
+    finally { setLoadingId(null); }
   }
 
   async function handleReject(id: string) {
+    setLoadingId(id + '-reject');
     try {
       await reject({ id }).unwrap();
       toast.success('Subscription rejected');
       refetch();
     } catch (e: any) { toast.error(e?.data?.message || 'Failed'); }
+    finally { setLoadingId(null); }
   }
 
-  const statusCfg: Record<string, { color: string; label: string }> = {
-    PENDING:  { color: '#f59e0b', label: 'Pending' },
-    ACTIVE:   { color: '#10b981', label: 'Active'  },
-    EXPIRED:  { color: '#ef4444', label: 'Expired' },
-    REJECTED: { color: '#ef4444', label: 'Rejected' },
+  const statusCfg: Record<string, { color: string; bg: string; label: string }> = {
+    PENDING:  { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  label: 'Pending'  },
+    ACTIVE:   { color: '#10b981', bg: 'rgba(16,185,129,0.12)',  label: 'Active'   },
+    EXPIRED:  { color: '#ef4444', bg: 'rgba(239,68,68,0.12)',   label: 'Expired'  },
+    REJECTED: { color: '#ef4444', bg: 'rgba(239,68,68,0.12)',   label: 'Rejected' },
   };
+
+  const filterTabs = [
+    { key: '',          label: 'All',      count: stats ? (stats.total || 0) : null },
+    { key: 'PENDING',   label: 'Pending',  count: stats?.pending  ?? null },
+    { key: 'ACTIVE',    label: 'Active',   count: stats?.active   ?? null },
+    { key: 'EXPIRED',   label: 'Expired',  count: stats?.expired  ?? null },
+    { key: 'REJECTED',  label: 'Rejected', count: null },
+  ];
 
   return (
     <div className="space-y-5">
@@ -1593,88 +1606,126 @@ function SubscriptionsTab() {
         <KPICard label="Expired"  value={stats?.expired  || 0} icon={<XCircleIcon size={16} />}     fullBg="#ef4444" fullBgText />
       </div>
 
-      {/* Filter */}
-      <div className="card">
-        <div className="flex items-center gap-2 flex-wrap mb-4">
-          {['ALL', 'PENDING', 'ACTIVE', 'EXPIRED', 'REJECTED'].map(s => (
-            <button key={s} onClick={() => setStatusFilter(s === 'ALL' ? '' : s)}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
-              style={{
-                background: statusFilter === (s === 'ALL' ? '' : s) ? '#0066ff' : 'var(--color-overlay)',
-                color: statusFilter === (s === 'ALL' ? '' : s) ? '#fff' : 'var(--color-text-3)',
-              }}>
-              {s}
-            </button>
-          ))}
+      <div className="card space-y-4">
+        {/* Filter tabs */}
+        <div className="flex items-center gap-2 flex-wrap pb-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          {filterTabs.map(f => {
+            const isActive = statusFilter === f.key;
+            return (
+              <button key={f.key} onClick={() => setStatusFilter(f.key)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
+                style={{
+                  background: isActive ? '#0066ff' : 'var(--color-overlay)',
+                  color: isActive ? '#fff' : 'var(--color-text-3)',
+                  border: isActive ? '1px solid #0066ff' : '1px solid var(--color-border)',
+                }}>
+                {f.label}
+                {f.count !== null && (
+                  <span className="inline-flex items-center justify-center rounded-full text-xs font-black"
+                    style={{
+                      minWidth: '18px', height: '18px', padding: '0 4px',
+                      background: isActive ? 'rgba(255,255,255,0.25)' : 'var(--color-surface-2)',
+                      color: isActive ? '#fff' : 'var(--color-text-4)',
+                    }}>
+                    {f.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
+        {/* List */}
         {isLoading ? (
-          <div className="space-y-2">{[...Array(4)].map((_, i) => <div key={i} className="skeleton h-16 rounded-xl" />)}</div>
+          <div className="space-y-3">
+            {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-20 rounded-2xl" />)}
+          </div>
+        ) : !subs.length ? (
+          <div className="py-12 flex flex-col items-center gap-2">
+            <DocumentIcon size={40} />
+            <div className="font-bold t-text">No subscriptions found</div>
+            <div className="text-sm t-text-4">Try a different status filter</div>
+          </div>
         ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Member</th>
-                  <th>Submitted</th>
-                  <th>Status</th>
-                  <th>Approved At</th>
-                  <th>Expires At</th>
-                  <th>GTC</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {subs.map((sub: any) => {
-                  const cfg = statusCfg[sub.status] || { color: '#888', label: sub.status };
-                  return (
-                    <tr key={sub.id}>
-                      <td>
-                        <div className="font-mono font-bold text-xs">{sub.user?.memberId}</div>
-                        <div className="text-xs t-text-4">{sub.user?.name}</div>
-                      </td>
-                      <td className="text-xs t-text-3">{new Date(sub.createdAt).toLocaleDateString('en-IN')}</td>
-                      <td>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold"
-                          style={{ background: `${cfg.color}22`, color: cfg.color }}>
-                          {cfg.label}
-                        </span>
-                      </td>
-                      <td className="text-xs t-text-3">{sub.approvedAt ? new Date(sub.approvedAt).toLocaleDateString('en-IN') : '—'}</td>
-                      <td className="text-xs t-text-3">{sub.expiresAt ? new Date(sub.expiresAt).toLocaleDateString('en-IN') : '—'}</td>
-                      <td>
-                        <span className={`text-xs font-bold ${sub.gtcCredited ? 'text-emerald-500' : 't-text-4'}`}>
-                          {sub.gtcCredited ? '500 credited' : '—'}
-                        </span>
-                      </td>
-                      <td>
-                        {sub.status === 'PENDING' && (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleApprove(sub.id)}
-                              disabled={approving}
-                              className="px-2.5 py-1 rounded-lg text-xs font-bold text-white"
-                              style={{ background: '#10b981', opacity: approving ? 0.7 : 1 }}>
-                              {approving ? '…' : 'Approve'}
-                            </button>
-                            <button
-                              onClick={() => handleReject(sub.id)}
-                              disabled={rejecting}
-                              className="px-2.5 py-1 rounded-lg text-xs font-bold text-white"
-                              style={{ background: '#ef4444', opacity: rejecting ? 0.7 : 1 }}>
-                              {rejecting ? '…' : 'Reject'}
-                            </button>
-                          </div>
+          <div className="space-y-2">
+            {subs.map((sub: any) => {
+              const cfg = statusCfg[sub.status] || { color: '#888', bg: 'rgba(136,136,136,0.1)', label: sub.status };
+              const isApprovingThis = loadingId === sub.id + '-approve';
+              const isRejectingThis = loadingId === sub.id + '-reject';
+              const isBusy = isApprovingThis || isRejectingThis;
+
+              return (
+                <div key={sub.id} className="rounded-2xl p-4"
+                  style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    {/* Left: member info */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm text-white shrink-0"
+                        style={{ background: cfg.color }}>
+                        {(sub.user?.name || 'U')[0].toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-bold t-text truncate" style={{ fontSize: '0.9375rem' }}>
+                          {sub.user?.name || '—'}
+                        </div>
+                        <div className="font-mono text-xs t-text-4">{sub.user?.memberId}</div>
+                        {sub.user?.mobile && (
+                          <div className="text-xs t-text-4">{sub.user.mobile}</div>
                         )}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {!subs.length && (
-                  <tr><td colSpan={7} className="text-center py-8 t-text-4 text-sm">No subscriptions found</td></tr>
-                )}
-              </tbody>
-            </table>
+                      </div>
+                    </div>
+
+                    {/* Right: status + actions */}
+                    <div className="flex items-center gap-2 flex-wrap shrink-0">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
+                        style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}44` }}>
+                        {cfg.label}
+                      </span>
+                      {sub.status === 'PENDING' && (
+                        <>
+                          <button onClick={() => handleApprove(sub.id)} disabled={isBusy}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-opacity"
+                            style={{ background: '#10b981', opacity: isBusy ? 0.6 : 1 }}>
+                            {isApprovingThis ? <><RefreshIcon size={11} className="animate-spin" /> Approving…</> : <><CheckCircleIcon size={13} /> Approve</>}
+                          </button>
+                          <button onClick={() => handleReject(sub.id)} disabled={isBusy}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-opacity"
+                            style={{ background: '#ef4444', opacity: isBusy ? 0.6 : 1 }}>
+                            {isRejectingThis ? <><RefreshIcon size={11} className="animate-spin" /> Rejecting…</> : <><XCircleIcon size={13} /> Reject</>}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Meta row */}
+                  <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-3 pt-3"
+                    style={{ borderTop: '1px solid var(--color-border)' }}>
+                    <span className="text-xs t-text-4">
+                      <span className="font-semibold t-text-3">Submitted:</span>{' '}
+                      {new Date(sub.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                    {sub.approvedAt && (
+                      <span className="text-xs t-text-4">
+                        <span className="font-semibold t-text-3">Approved:</span>{' '}
+                        {new Date(sub.approvedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                    {sub.expiresAt && (
+                      <span className="text-xs t-text-4">
+                        <span className="font-semibold t-text-3">Expires:</span>{' '}
+                        {new Date(sub.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                    {sub.gtcCredited && (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-500">
+                        <BoltIcon size={11} /> 500 GTC credited
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

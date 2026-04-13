@@ -15,11 +15,13 @@ router.get('/', jwtAuth, async (req, res, next) => {
         purchaseBalance: true,
         incomeBalance: true,
         gstBalance: true,
+        gtcBalance: true,
+        gtcAddress: true,
         updatedAt: true,
       },
     });
     if (!wallet) {
-      res.json({ couponBalance: 0, purchaseBalance: 0, incomeBalance: 0, gstBalance: 0, updatedAt: null });
+      res.json({ couponBalance: 0, purchaseBalance: 0, incomeBalance: 0, gstBalance: 0, gtcBalance: 0, gtcAddress: null, updatedAt: null });
       return;
     }
     res.json(wallet);
