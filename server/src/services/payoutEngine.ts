@@ -120,7 +120,7 @@ export async function processJoiningPayout(
     select: { id: true },
   });
 
-  // 4. Atomic transaction (SQLite serialises; for PG use SERIALIZABLE or FOR UPDATE)
+  // 4. Atomic transaction — 30 s timeout to cover multiple sequential queries
   await db.$transaction(async (tx) => {
     // ── Determine payout recipients ─────────────────────────────────
     type Slot = { recipientId: string; levelDiff: number; note: string };
@@ -290,5 +290,5 @@ export async function processJoiningPayout(
         data: { cyclePosition: nextCycle },
       });
     }
-  });
+  }, { timeout: 30000 });
 }
