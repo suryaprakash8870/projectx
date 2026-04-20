@@ -87,13 +87,17 @@ router.post('/admin/subscriptions/:id/approve', jwtAuth, requireAdmin, async (re
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
+    const SUBSCRIPTION_FEE = 250;
+    const GST_AMOUNT = 45;                   // 18% of ₹250
+    const SUBSCRIPTION_INCOME = SUBSCRIPTION_FEE - GST_AMOUNT; // ₹205
+
     await db.$transaction(async (tx) => {
       await tx.plan1Subscription.update({
         where: { id: sub.id },
         data: { status: 'ACTIVE', approvedAt: new Date(), expiresAt, gtcCredited: true },
       });
 
-      // Ensure wallet has a GTC address
+      // ── Credit user: 500 GTC coins ──────────────────────────────────
       const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId: sub.userId } });
       const gtcAddress = wallet.gtcAddress || generateGtcAddress(sub.userId);
 
@@ -115,9 +119,43 @@ router.post('/admin/subscriptions/:id/approve', jwtAuth, requireAdmin, async (re
           sourceRef: sub.id,
         },
       });
+
+      // ── Credit admin: ₹45 GST + ₹205 subscription income ──────────
+      const adminUser = await tx.user.findFirstOrThrow({ where: { role: 'ADMIN' }, select: { id: true } });
+      const adminWallet = await tx.wallet.findUniqueOrThrow({ where: { userId: adminUser.id } });
+
+      await tx.wallet.update({
+        where: { userId: adminUser.id },
+        data: {
+          gstBalance: { increment: GST_AMOUNT },
+          incomeBalance: { increment: SUBSCRIPTION_INCOME },
+        },
+      });
+
+      await tx.walletTransaction.create({
+        data: {
+          walletId: adminWallet.id,
+          type: 'CREDIT',
+          field: 'GST',
+          amount: GST_AMOUNT,
+          note: `GST 18% from Plan 1 subscription (₹${GST_AMOUNT})`,
+          sourceRef: sub.id,
+        },
+      });
+
+      await tx.walletTransaction.create({
+        data: {
+          walletId: adminWallet.id,
+          type: 'CREDIT',
+          field: 'INCOME',
+          amount: SUBSCRIPTION_INCOME,
+          note: `Plan 1 subscription income (₹${SUBSCRIPTION_INCOME})`,
+          sourceRef: sub.id,
+        },
+      });
     }, { timeout: 15000 });
 
-    res.json({ message: 'Subscription approved. 500 GTC coins credited.' });
+    res.json({ message: 'Subscription approved. 500 GTC credited, ₹45 GST + ₹205 income recorded.' });
   } catch (err) { next(err); }
 });
 
@@ -149,6 +187,8 @@ router.get('/admin/stats', jwtAuth, requireAdmin, async (_req, res, next) => {
       data: { status: 'EXPIRED' },
     });
 
+    const approvedCount = await db.plan1Subscription.count({ where: { status: { in: ['ACTIVE', 'EXPIRED'] } } });
+
     const [total, active, pending, expired] = await Promise.all([
       db.plan1Subscription.count(),
       db.plan1Subscription.count({ where: { status: 'ACTIVE' } }),
@@ -156,7 +196,12 @@ router.get('/admin/stats', jwtAuth, requireAdmin, async (_req, res, next) => {
       db.plan1Subscription.count({ where: { status: 'EXPIRED' } }),
     ]);
 
-    res.json({ total, active, pending, expired });
+    // Revenue: each approved subscription = ₹45 GST + ₹205 income
+    const totalGst = approvedCount * 45;
+    const totalSubscriptionIncome = approvedCount * 205;
+    const totalRevenue = approvedCount * 250;
+
+    res.json({ total, active, pending, expired, totalGst, totalSubscriptionIncome, totalRevenue, approvedCount });
   } catch (err) { next(err); }
 });
 

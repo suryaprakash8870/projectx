@@ -18,6 +18,8 @@ import Plan1Dashboard from './pages/Plan1Dashboard';
 import Plan2Join from './pages/Plan2Join';
 import Plan3Join from './pages/Plan3Join';
 import Plan3Dashboard from './pages/Plan3Dashboard';
+import Plan1AdminDashboard from './pages/Plan1AdminDashboard';
+import Plan2AdminDashboard from './pages/Plan2AdminDashboard';
 import Plan3AdminDashboard from './pages/Plan3AdminDashboard';
 import Plan3Referral from './pages/Plan3Referral';
 import ProductDetail from './pages/ProductDetail';
@@ -107,8 +109,12 @@ export default function App() {
         <Route index element={<Admin />} />
       </Route>
 
+      <Route path="/plan1/admin-dashboard" element={<AdminRoute><AppShell /></AdminRoute>}>
+        <Route index element={<Plan1AdminDashboard />} />
+      </Route>
+
       <Route path="/plan2/admin-dashboard" element={<AdminRoute><AppShell /></AdminRoute>}>
-        <Route index element={<Navigate to="/plan3/admin-dashboard" replace />} />
+        <Route index element={<Plan2AdminDashboard />} />
       </Route>
 
       <Route path="/plan3/admin-dashboard" element={<AdminRoute><AppShell /></AdminRoute>}>

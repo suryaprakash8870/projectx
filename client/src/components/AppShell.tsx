@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Outlet, NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../store/store';
@@ -53,7 +53,6 @@ const reportsSubItems = [
 // Plan 1 (subscription) admin tabs
 const adminSubItemsPlan1 = [
   { tab: 'subscriptions',  label: 'Subscriptions' },
-  { tab: 'overview',       label: 'Overview' },
   { tab: 'members',        label: 'Members' },
   { tab: 'vendors',        label: 'Vendors' },
   { tab: 'products',       label: 'Products' },
@@ -62,7 +61,6 @@ const adminSubItemsPlan1 = [
 
 // Plan 2 (referral) admin tabs
 const adminSubItemsPlan2 = [
-  { tab: 'overview',      label: 'Overview' },
   { tab: 'requests',      label: 'Join Requests' },
   { tab: 'members',       label: 'Members' },
   { tab: 'payoutlog',     label: 'Payout Log' },
@@ -75,7 +73,6 @@ const adminSubItemsPlan2 = [
 
 // Plan 3 (investment) admin tabs
 const adminSubItemsPlan3 = [
-  { tab: 'overview',       label: 'Overview' },
   { tab: 'requests',       label: 'Investment Requests' },
   { tab: 'members',        label: 'Plan 3 Members' },
   { tab: 'returns',        label: 'Monthly Returns' },
@@ -109,7 +106,9 @@ export default function AppShell() {
 
 
 
-  const adminDashboardLink = adminPlan === 'PLAN3' ? '/plan3/admin-dashboard' : '/dashboard';
+  const adminDashboardLink = adminPlan === 'PLAN3' ? '/plan3/admin-dashboard'
+    : adminPlan === 'PLAN1' ? '/plan1/admin-dashboard'
+    : '/plan2/admin-dashboard';
   const nav = role === 'ADMIN'
     ? [{ to: adminDashboardLink, icon: icons.home, label: 'Dashboard' }]
     : (planType === 'PLAN2' ? plan3MemberNav : memberNav);
@@ -160,8 +159,9 @@ export default function AppShell() {
     '/profile':                 'Profile',
     '/admin':                   'Admin Panel',
     '/plan1/dashboard':         'Plan 1 Dashboard',
+    '/plan1/admin-dashboard':   'Plan 1 Dashboard',
     '/plan2/dashboard':         'Dashboard',
-    '/plan2/admin-dashboard':   'Plan 3 Dashboard',
+    '/plan2/admin-dashboard':   'Plan 2 Dashboard',
     '/plan2/referral':          'Referral',
     '/plan3/dashboard':         'Dashboard',
     '/plan3/admin-dashboard':   'Plan 3 Dashboard',
@@ -179,6 +179,11 @@ export default function AppShell() {
   const flyoutCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Mobile slide-up sheet
   const [mobileSheet, setMobileSheet] = useState<'reports' | 'admin' | 'more' | null>(null);
+  // Close sheet + plan dropdown on route change
+  useEffect(() => {
+    setMobileSheet(null);
+    setPlanDropdownOpen(false);
+  }, [location.pathname, location.search]);
   // Desktop user dropdown
   const [desktopUserOpen, setDesktopUserOpen] = useState(false);
 
@@ -262,7 +267,7 @@ export default function AppShell() {
                           if (role === 'ADMIN') {
                             dispatch(setAdminPlan(opt.adminId));
                             setPlanDropdownOpen(false);
-                            navigate(opt.adminId === 'PLAN3' ? '/plan3/admin-dashboard' : '/dashboard');
+                            navigate(opt.adminId === 'PLAN3' ? '/plan3/admin-dashboard' : opt.adminId === 'PLAN1' ? '/plan1/admin-dashboard' : '/plan2/admin-dashboard');
                           } else {
                             handleMemberSwitchPlan(opt.route as '/plan1/dashboard' | '/dashboard' | '/plan3/dashboard');
                           }
@@ -530,18 +535,77 @@ export default function AppShell() {
             minHeight: '60px',
           }}
         >
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 relative">
             <div className="w-9 h-9 rounded-xl bg-brand-500 flex items-center justify-center text-white font-black text-base shadow-md glow shrink-0">
               P
             </div>
-            <div>
-              <div className="font-display font-bold t-text" style={{ fontSize: '1rem' }}>
-                {isPlan3Context ? 'Plan-III' : isPlan1Context ? 'Plan-I' : 'Plan-II'}
+            <button
+              onClick={() => setPlanDropdownOpen(o => !o)}
+              className="leading-tight flex items-center gap-1.5 hover:opacity-80"
+              style={{ textAlign: 'left' }}
+            >
+              <div>
+                <div className="font-display font-bold t-text" style={{ fontSize: '1rem' }}>
+                  {isPlan3Context ? 'Plan-III' : isPlan1Context ? 'Plan-I' : 'Plan-II'}
+                </div>
+                <div className="t-text-4" style={{ fontSize: '0.6875rem' }}>
+                  {isPlan3Context ? 'Investment Program' : isPlan1Context ? 'Monthly Subscription' : 'Referral Program'}
+                </div>
               </div>
-              <div className="t-text-4" style={{ fontSize: '0.6875rem' }}>
-                {isPlan3Context ? 'Investment Program' : isPlan1Context ? 'Monthly Subscription' : 'Referral Program'}
-              </div>
-            </div>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                className={`w-4 h-4 shrink-0 transition-transform duration-200 ${planDropdownOpen ? 'rotate-180' : ''}`}>
+                <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+              </svg>
+            </button>
+            {planDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setPlanDropdownOpen(false)} />
+                <div
+                  className="absolute top-full left-0 mt-2 w-72 rounded-xl shadow-xl z-50 overflow-hidden"
+                  style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                >
+                  {([
+                    { id: 'PLAN1' as const, adminId: 'PLAN1' as const, title: 'Plan 1 — Subscription', sub: 'Monthly platform access (₹250/month)', route: '/plan1/dashboard' as const },
+                    { id: 'PLAN1' as const, adminId: 'PLAN2' as const, title: 'Plan 2 — Referral Program', sub: 'Referral + cycles (₹1,000)', route: '/dashboard' as const },
+                    ...(role !== 'ADMIN' && !altAccessToken ? [] : [
+                      { id: 'PLAN2' as const, adminId: 'PLAN3' as const, title: 'Plan 3 — Investment', sub: 'Monthly returns on ₹50k / ₹1L', route: '/plan3/dashboard' as const },
+                    ]),
+                  ]).map((opt, idx, arr) => {
+                    const activeForAdmin = role === 'ADMIN' && adminPlan === opt.adminId;
+                    const activeForMember = role !== 'ADMIN' && (
+                      opt.adminId === 'PLAN3' ? planType === 'PLAN2' :
+                      opt.adminId === 'PLAN1' ? (planType !== 'PLAN2' && isPlan1Context) :
+                      (planType !== 'PLAN2' && !isPlan1Context)
+                    );
+                    const isActive = activeForAdmin || activeForMember;
+                    return (
+                      <button
+                        key={opt.adminId}
+                        onClick={() => {
+                          if (role === 'ADMIN') {
+                            dispatch(setAdminPlan(opt.adminId));
+                            setPlanDropdownOpen(false);
+                            navigate(opt.adminId === 'PLAN3' ? '/plan3/admin-dashboard' : opt.adminId === 'PLAN1' ? '/plan1/admin-dashboard' : '/plan2/admin-dashboard');
+                          } else {
+                            handleMemberSwitchPlan(opt.route as '/plan1/dashboard' | '/dashboard' | '/plan3/dashboard');
+                          }
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-[var(--color-overlay)] transition-colors"
+                        style={{ borderBottom: idx < arr.length - 1 ? '1px solid var(--color-border)' : 'none' }}
+                      >
+                        <div className="font-bold t-text text-sm flex items-center gap-2">
+                          {opt.title}
+                          {isActive && (
+                            <span className="inline-block w-2 h-2 rounded-full bg-brand-500 shrink-0" />
+                          )}
+                        </div>
+                        <div className="t-text-4 text-xs mt-0.5">{opt.sub}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-1.5">
@@ -724,12 +788,24 @@ export default function AppShell() {
         >
           {role === 'ADMIN' ? (
             <>
-              {[
-                { tab: 'overview',  label: 'Overview',  icon: icons.home },
-                { tab: 'requests',  label: 'Requests',  icon: icons.join },
-                { tab: 'members',   label: 'Members',   icon: icons.profile },
-                { tab: 'payoutlog', label: 'Payouts',   icon: icons.wallet },
-              ].map(item => {
+              <Link to={adminDashboardLink}
+                className={`mobile-tab-item ${location.pathname === adminDashboardLink ? 'text-brand-500 bg-brand-500/10' : 't-text-4'}`}>
+                {icons.home}
+                <span style={{ fontSize: '0.6875rem', marginTop: '2px' }}>Dashboard</span>
+              </Link>
+              {(adminPlan === 'PLAN1' ? [
+                { tab: 'subscriptions', label: 'Subs',     icon: icons.join },
+                { tab: 'members',       label: 'Members',  icon: icons.profile },
+                { tab: 'products',      label: 'Products', icon: icons.wallet },
+              ] : adminPlan === 'PLAN3' ? [
+                { tab: 'requests',      label: 'Requests', icon: icons.join },
+                { tab: 'members',       label: 'Members',  icon: icons.profile },
+                { tab: 'returns',       label: 'Returns',  icon: icons.wallet },
+              ] : [
+                { tab: 'requests',      label: 'Requests', icon: icons.join },
+                { tab: 'members',       label: 'Members',  icon: icons.profile },
+                { tab: 'payoutlog',     label: 'Payouts',  icon: icons.wallet },
+              ]).map(item => {
                 const isActive = isOnAdmin && currentAdminTab === item.tab;
                 return (
                   <Link key={item.tab} to={`/admin?tab=${item.tab}`}

@@ -1,0 +1,21 @@
+{
+  "name": "mobile-capacitor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Android app that wraps the /client web build via Capacitor.",
+  "scripts": {
+    "build:web": "npm run build --prefix ../client",
+    "sync": "npm run build:web && cap sync android",
+    "open": "cap open android",
+    "run:android": "npm run sync && cap run android",
+    "run:livereload": "cap run android --live-reload --external"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}

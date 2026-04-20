@@ -5,11 +5,9 @@ import toast from 'react-hot-toast';
 import type { RootState } from '../store/store';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, AreaChart, Area, Legend,
 } from 'recharts';
 import Plan2Referral from './Plan2Referral';
 import {
-  useGetAdminStatsQuery,
   useGetAllJoiningsQuery,
   useGetAdminMembersQuery,
   useGetPayoutLogQuery,
@@ -28,7 +26,6 @@ import {
   useUpdateProductMutation,
   useDeleteProductMutation,
   // Plan 3 (investment) admin
-  usePlan2AdminStatsQuery,
   usePlan2AdminMembersQuery,
   usePlan2AdminInvestmentRequestsQuery,
   usePlan2AdminApproveInvestmentMutation,
@@ -43,9 +40,9 @@ import {
   useRejectPlan1SubscriptionMutation,
 } from '../store/apiSlice';
 import {
-  ChartBarIcon, DocumentIcon, UsersIcon, BanknotesIcon,
-  ReceiptIcon, StorefrontIcon, RefreshIcon, TrendingUpIcon, UserIcon,
-  ClockIcon, CheckCircleIcon, XCircleIcon, BriefcaseIcon, BoltIcon,
+  ChartBarIcon, UsersIcon,
+  ReceiptIcon, RefreshIcon, UserIcon,
+  ClockIcon, CheckCircleIcon, XCircleIcon, BriefcaseIcon,
   ClipboardIcon, ArrowDownIcon, ShoppingBagIcon,
 } from '../components/Icons';
 
@@ -141,166 +138,6 @@ function KPICard({ label, value, sub, icon, fullBg, fullBgText }: {
   );
 }
 
-// ── Overview Tab ─────────────────────────────────────────────────────────────
-const DONUT_COLORS = ['#3b82f6', '#f59e0b', '#6366f1', '#06b6d4'];
-
-function OverviewTab() {
-  const { data: stats, isLoading } = useGetAdminStatsQuery();
-
-  const dailyJoiningChartData = stats
-    ? Object.entries(stats.dailyJoinings)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .slice(-14)
-        .map(([date, count]) => ({ date: date.slice(5), count }))
-    : [];
-
-  const cycleDistributionChartData = stats?.cycleDistribution || [];
-
-  const revenueSplitChartData = stats?.revenueSplit
-    ? [
-        { name: 'Platform Fee', value: stats.revenueSplit.totalPlatformFee },
-        { name: 'GST', value: stats.revenueSplit.totalGst },
-        { name: 'Company', value: stats.revenueSplit.totalCompany },
-        { name: 'Users', value: stats.revenueSplit.totalUsers },
-      ]
-    : [];
-
-  if (isLoading) return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-      {[...Array(8)].map((_, i) => <div key={i} className="skeleton h-24 rounded-2xl" />)}
-    </div>
-  );
-
-  const tooltipStyle = {
-    contentStyle: { background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, fontSize: 13 },
-  };
-
-  return (
-    <div className="space-y-5">
-      {/* Users & Network */}
-      <div>
-        <div className="text-xs font-bold uppercase tracking-widest t-text-4 mb-3">Users &amp; Network</div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <KPICard label="Users"            value={stats?.regularUsers    || 0} sub="Regular members"   icon={<UserIcon size={16} />}         fullBg="#2563eb" fullBgText />
-          <KPICard label="Root Users"       value={stats?.rootUsers       || 0} sub="Root-level members" icon={<UsersIcon size={16} />}        fullBg="#22c55e" fullBgText />
-          <KPICard label="Total Joinings"   value={stats?.totalJoinings   || 0} sub="All time"           icon={<CheckCircleIcon size={16} />}  fullBg="#f04722" fullBgText />
-          <KPICard label="Pending Requests" value={stats?.pendingRequests || 0} sub="Awaiting approval"  icon={<ClockIcon size={16} />}        fullBg="#8b5cf6" fullBgText />
-        </div>
-      </div>
-
-      {/* Financials */}
-      <div>
-        <div className="text-xs font-bold uppercase tracking-widest t-text-4 mb-3">Financials</div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          <KPICard label="Total Payouts"   value={`₹${(stats?.totalPayoutAmount  || 0).toLocaleString('en-IN')}`} sub="Paid to members"     icon={<BanknotesIcon size={16} />} />
-          <KPICard label="Total Revenue"   value={`₹${(stats?.totalRevenueAmount || 0).toLocaleString('en-IN')}`} sub="Admin wallet income" icon={<BriefcaseIcon size={16} />} />
-          <KPICard label="GST Collected"   value={`₹${(stats?.gstCollected       || 0).toLocaleString('en-IN')}`} sub="Tax collected"       icon={<ReceiptIcon size={16} />} />
-          <KPICard label="Platform Fees"   value={`₹${(stats?.companyFeeTotal    || 0).toLocaleString('en-IN')}`} sub="Platform revenue"    icon={<BriefcaseIcon size={16} />} />
-          <KPICard label="Total Vendors"   value={stats?.totalVendors             || 0}                           sub="Active vendors"      icon={<StorefrontIcon size={16} />} />
-        </div>
-      </div>
-
-      {/* Daily Joinings — Area Chart */}
-      {dailyJoiningChartData.length > 0 && (
-        <div className="relative rounded-3xl overflow-hidden" style={{ padding: '1.5rem', background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' }}>
-          <div className="absolute pointer-events-none" style={{ width: '140px', height: '140px', borderRadius: '50%', border: '2px solid var(--color-border)', top: '-45px', right: '-35px' }} />
-          <div className="absolute pointer-events-none" style={{ width: '85px', height: '85px', borderRadius: '50%', border: '1px solid var(--color-border)', top: '10px', right: '30px' }} />
-          <div className="relative flex items-start justify-between mb-5">
-            <div>
-              <div className="font-bold t-text" style={{ fontSize: '1rem' }}>Daily Joinings</div>
-              <div className="text-xs t-text-4 mt-0.5">New members over last 14 days</div>
-            </div>
-            <div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{ background: 'var(--color-overlay)', color: 'var(--color-text-3)' }}>
-              <UsersIcon size={16} />
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={dailyJoiningChartData}>
-              <defs>
-                <linearGradient id="joinGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="date" tick={{ fill: 'var(--color-text-4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: 'var(--color-text-4)', fontSize: 11 }} allowDecimals={false} axisLine={false} tickLine={false} />
-              <Tooltip {...tooltipStyle} labelStyle={{ color: 'var(--color-text-3)' }} itemStyle={{ color: '#3b82f6' }} />
-              <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2} fill="url(#joinGrad)" dot={false} activeDot={{ r: 4, fill: '#3b82f6' }} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Cycle Distribution — Bar Chart */}
-        {cycleDistributionChartData.length > 0 && (
-          <div className="relative rounded-3xl overflow-hidden" style={{ padding: '1.5rem', background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' }}>
-            <div className="absolute pointer-events-none" style={{ width: '110px', height: '110px', borderRadius: '50%', border: '2px solid var(--color-border)', top: '-30px', right: '-25px' }} />
-            <div className="absolute pointer-events-none" style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'var(--color-overlay)', bottom: '-10px', left: '-10px' }} />
-            <div className="relative flex items-start justify-between mb-5">
-              <div>
-                <div className="font-bold t-text" style={{ fontSize: '1rem' }}>Cycle Distribution</div>
-                <div className="text-xs t-text-4 mt-0.5">Members per cycle level</div>
-              </div>
-              <div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{ background: 'var(--color-overlay)', color: 'var(--color-text-3)' }}>
-                <RefreshIcon size={16} />
-              </div>
-            </div>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={cycleDistributionChartData}>
-                <XAxis dataKey="cycle" tick={{ fill: 'var(--color-text-4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'var(--color-text-4)', fontSize: 11 }} allowDecimals={false} axisLine={false} tickLine={false} />
-                <Tooltip {...tooltipStyle} labelStyle={{ color: 'var(--color-text-3)' }} itemStyle={{ color: '#6366f1' }} />
-                <Bar dataKey="count" fill="#6366f1" fillOpacity={0.85} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {/* Revenue Split — Donut Chart */}
-        {revenueSplitChartData.length > 0 && (
-          <div className="relative rounded-3xl overflow-hidden" style={{ padding: '1.5rem', background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-card)' }}>
-            <div className="absolute pointer-events-none" style={{ width: '110px', height: '110px', borderRadius: '50%', border: '2px solid var(--color-border)', top: '-30px', right: '-25px' }} />
-            <div className="absolute pointer-events-none" style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'var(--color-overlay)', bottom: '-10px', left: '-10px' }} />
-            <div className="relative flex items-start justify-between mb-5">
-              <div>
-                <div className="font-bold t-text" style={{ fontSize: '1rem' }}>Revenue Split</div>
-                <div className="text-xs t-text-4 mt-0.5">Breakdown by revenue category</div>
-              </div>
-              <div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{ background: 'var(--color-overlay)', color: 'var(--color-text-3)' }}>
-                <TrendingUpIcon size={16} />
-              </div>
-            </div>
-            <div style={{ position: 'relative' }}>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={revenueSplitChartData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
-                  >
-                    {revenueSplitChartData.map((_entry, index) => (
-                      <Cell key={`cell-${index}`} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip {...tooltipStyle} formatter={(value) => `₹${(value as number).toLocaleString('en-IN')}`} />
-                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -62%)', textAlign: 'center', pointerEvents: 'none' }}>
-                <div className="text-xs font-bold uppercase tracking-widest t-text-4">Revenue</div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ── Join Requests Tab ─────────────────────────────────────────────────────────
 function RequestsTab() {
@@ -1245,37 +1082,6 @@ function OrdersTab() {
 // ─── PLAN 2 ADMIN TABS ─────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════
 
-function Plan2OverviewTab() {
-  const { data: stats } = usePlan2AdminStatsQuery();
-  return (
-    <div className="space-y-5">
-      <div>
-        <div className="text-xs font-bold uppercase tracking-widest t-text-4 mb-3">Members</div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <KPICard label="Total Members"    value={stats?.totalMembers    || 0} icon={<UsersIcon size={16} />} sub="All Plan 3 users" />
-          <KPICard label="Active Members"   value={stats?.activeMembers   || 0} icon={<CheckCircleIcon size={16} />} sub="Investment approved" />
-          <KPICard label="Pending Members"  value={stats?.pendingMembers  || 0} icon={<ClockIcon size={16} />} sub="Awaiting OTP / approval" />
-          <KPICard label="Pending Requests" value={stats?.pendingRequests || 0} icon={<DocumentIcon size={16} />} sub="Investment requests queue" />
-        </div>
-      </div>
-
-      <div>
-        <div className="text-xs font-bold uppercase tracking-widest t-text-4 mb-3">Investment & Returns</div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <KPICard label="Active Investments" value={stats?.totalInvestments || 0}                                      icon={<BriefcaseIcon size={16} />} />
-          <KPICard label="Total Invested"     value={`₹${(stats?.totalInvestedAmount        || 0).toLocaleString('en-IN')}`} icon={<BanknotesIcon size={16} />} />
-          <KPICard label="Monthly Returns"    value={`₹${(stats?.totalMonthlyReturnsPaid    || 0).toLocaleString('en-IN')}`} icon={<TrendingUpIcon size={16} />} sub="5% × investments" />
-          <KPICard label="Referral Returns"   value={`₹${(stats?.totalReferralReturnsPaid   || 0).toLocaleString('en-IN')}`} icon={<BoltIcon size={16} />} sub="2% × direct referrals" />
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="section-title">Monthly Distribution Runs</div>
-        <div className="text-sm t-text-3 mt-1">{stats?.totalRunsCompleted || 0} monthly distribution runs completed</div>
-      </div>
-    </div>
-  );
-}
 
 function Plan2InvestmentRequestsTab() {
   const [statusFilter, setStatusFilter] = useState<string>('PENDING');
@@ -1552,6 +1358,7 @@ function Plan2ReturnPayoutsTab() {
   );
 }
 
+
 // ── Plan 1 Subscriptions Tab ─────────────────────────────────────────────────
 function SubscriptionsTab() {
   const [statusFilter, setStatusFilter] = useState<string>('PENDING');
@@ -1588,6 +1395,13 @@ function SubscriptionsTab() {
         <KPICard label="Active"   value={stats?.active   || 0} icon={<CheckCircleIcon size={16} />} fullBg="#10b981" fullBgText />
         <KPICard label="Pending"  value={stats?.pending  || 0} icon={<ClockIcon size={16} />}       fullBg="#f59e0b" fullBgText />
         <KPICard label="Expired"  value={stats?.expired  || 0} icon={<XCircleIcon size={16} />}     fullBg="#ef4444" fullBgText />
+      </div>
+
+      {/* Revenue KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <KPICard label="GST Collected" value={`₹${(stats?.totalGst || 0).toLocaleString('en-IN')}`} sub="18% of ₹250 per subscription" icon={<BriefcaseIcon size={16} />} />
+        <KPICard label="Subscription Income" value={`₹${(stats?.totalSubscriptionIncome || 0).toLocaleString('en-IN')}`} sub="₹205 per subscription" icon={<BriefcaseIcon size={16} />} />
+        <KPICard label="Total Revenue" value={`₹${(stats?.totalRevenue || 0).toLocaleString('en-IN')}`} sub={`From ${stats?.approvedCount || 0} approved subscriptions`} icon={<BriefcaseIcon size={16} />} />
       </div>
 
       {/* Filter */}
@@ -1697,7 +1511,6 @@ export default function Admin() {
   // Plan 1 (subscription) admin tabs
   const SUB_TAB_CONTENT: Record<string, JSX.Element> = {
     subscriptions:  <SubscriptionsTab />,
-    overview:       <OverviewTab />,
     members:        <MembersTab />,
     vendors:        <VendorsTab />,
     products:       <ProductsTab />,
@@ -1706,7 +1519,6 @@ export default function Admin() {
 
   // Plan 2 (referral) admin tabs
   const PLAN2_TAB_CONTENT: Record<string, JSX.Element> = {
-    overview:      <OverviewTab />,
     requests:      <RequestsTab />,
     members:       <MembersTab />,
     payoutlog:     <PayoutLogTab />,
@@ -1719,7 +1531,6 @@ export default function Admin() {
 
   // Plan 3 (investment) admin tabs
   const PLAN3_TAB_CONTENT: Record<string, JSX.Element> = {
-    overview:       <Plan2OverviewTab />,
     requests:       <Plan2InvestmentRequestsTab />,
     members:        <Plan2MembersTab />,
     returns:        <Plan2MonthlyReturnsTab />,
@@ -1728,31 +1539,31 @@ export default function Admin() {
   };
 
   const SUB_TAB_LABELS: Record<string, string> = {
-    subscriptions: 'Subscriptions', overview: 'Overview', members: 'Members',
+    subscriptions: 'Subscriptions', members: 'Members',
     vendors: 'Vendors', products: 'Products', orders: 'Orders',
   };
   const PLAN2_TAB_LABELS: Record<string, string> = {
-    overview: 'Overview', requests: 'Join Requests', members: 'Members',
+    requests: 'Join Requests', members: 'Members',
     payoutlog: 'Payout Log', revenue: 'Root Revenue', gst: 'GST Report',
     vendors: 'Vendors', products: 'Products', orders: 'Orders',
   };
   const PLAN3_TAB_LABELS: Record<string, string> = {
-    overview: 'Plan 3 Overview', requests: 'Investment Requests', members: 'Plan 3 Members',
+    requests: 'Investment Requests', members: 'Plan 3 Members',
     returns: 'Monthly Returns', returnpayouts: 'Return Payouts', referral: 'Referral',
   };
 
   const isPlan3 = adminPlan === 'PLAN3';
   const isPlan1Sub = adminPlan === 'PLAN1';
   const content = isPlan3
-    ? (PLAN3_TAB_CONTENT[activeTab] ?? <Plan2OverviewTab />)
+    ? (PLAN3_TAB_CONTENT[activeTab] ?? <Plan2InvestmentRequestsTab />)
     : isPlan1Sub
     ? (SUB_TAB_CONTENT[activeTab] ?? <SubscriptionsTab />)
-    : (PLAN2_TAB_CONTENT[activeTab] ?? <OverviewTab />);
+    : (PLAN2_TAB_CONTENT[activeTab] ?? <RequestsTab />);
   const title = isPlan3
-    ? (PLAN3_TAB_LABELS[activeTab] ?? 'Plan 3 Overview')
+    ? (PLAN3_TAB_LABELS[activeTab] ?? 'Investment Requests')
     : isPlan1Sub
     ? (SUB_TAB_LABELS[activeTab] ?? 'Subscriptions')
-    : (PLAN2_TAB_LABELS[activeTab] ?? 'Admin Panel');
+    : (PLAN2_TAB_LABELS[activeTab] ?? 'Join Requests');
   const subtitle = isPlan3
     ? 'Plan 3 — Investment Program management'
     : isPlan1Sub

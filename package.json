@@ -7,9 +7,15 @@
     "build": "npm run build --prefix server && npm run build --prefix client",
     "seed": "npm run seed --prefix server",
     "migrate": "npm run migrate --prefix server",
-    "install:all": "npm install && npm install --prefix server && npm install --prefix client"
+    "install:all": "npm install && npm install --prefix server && npm install --prefix client && npm install --prefix shared && npm install --prefix mobile",
+    "mobile": "npm run start --prefix mobile",
+    "mobile:android": "npm run android --prefix mobile"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.11.2",
+    "react-redux": "^9.2.0"
   }
 }
