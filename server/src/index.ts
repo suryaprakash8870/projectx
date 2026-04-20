@@ -22,8 +22,29 @@ const PORT = process.env.PORT || 4000;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 const isDev = process.env.NODE_ENV !== 'production';
-const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173').split(',').map(s => s.trim());
-app.use(cors({ origin: (origin, cb) => { if (isDev || !origin || allowedOrigins.some(o => origin.startsWith(o))) cb(null, true); else cb(new Error('Not allowed by CORS')); }, credentials: true }));
+// Origins from env plus the Capacitor/Ionic WebView origins used when the app
+// is wrapped as a native Android/iOS build. These are fixed by the framework
+// and aren't configurable at deploy time, so they're hard-coded here.
+const capacitorOrigins = [
+  'https://localhost',    // Capacitor Android default
+  'capacitor://localhost', // Capacitor iOS default
+  'ionic://localhost',    // legacy Ionic
+  'http://localhost',     // dev / live-reload
+];
+const allowedOrigins = [
+  ...(process.env.CLIENT_URL || 'http://localhost:5173').split(',').map(s => s.trim()),
+  ...capacitorOrigins,
+];
+app.use(cors({
+  origin: (origin, cb) => {
+    if (isDev || !origin || allowedOrigins.some(o => origin.startsWith(o))) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Not allowed by CORS: ${origin}`));
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(antiFraud);
 
